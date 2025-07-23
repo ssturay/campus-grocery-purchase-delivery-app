@@ -1,0 +1,7 @@
+streamlit
+pandas
+geopy
+opencage
+gspread
+gspread_dataframe
+oauth2client
