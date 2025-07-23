@@ -206,9 +206,12 @@ if user_type == txt["requester"]:
 
     lat, lon = geocode_location(location_name)
     if lat and lon:
-        st.map(pd.DataFrame([[lat, lon]], columns=["lat", "lon"]))
-    else:
-        st.warning("⚠️ Location not found.")
+    m = folium.Map(location=[lat, lon], zoom_start=15)
+    folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
+    st_folium(m, width=700, height=450)
+else:
+    st.warning("⚠️ Location not found.")
+
 
     surcharge_options = {}
     for base_name, (base_lat, base_lon) in shopper_bases.items():
@@ -311,9 +314,12 @@ elif user_type == txt["shopper"]:
 
     lat_s, lon_s = geocode_location(shopper_current_location)
     if lat_s and lon_s:
-        st.map(pd.DataFrame([[lat_s, lon_s]], columns=["lat", "lon"]))
-    else:
-        st.warning("⚠️ Your current location not found.")
+    m = folium.Map(location=[lat_s, lon_s], zoom_start=15)
+    folium.Marker([lat_s, lon_s], tooltip="Shopper Current Location").add_to(m)
+    st_folium(m, width=700, height=450)
+else:
+    st.warning("⚠️ Your current location not found.")
+
 
     # Show pending and assigned requests
     pending_requests = st.session_state.requests[
