@@ -300,7 +300,7 @@ elif user_type == txt["shopper"]:
                 st.error(txt["assigned_error"])
 
         st.subheader(txt["your_assignments"])
-        assigned = st.session_state.requests[st.session_state.requests["Shopper Name"] == shopper_name]
+        assigned = st.session_state.requests[st.session_state.requests["Shopper Name"] == shopper_name].reset_index()
         if assigned.empty:
             st.info("No deliveries assigned to you yet.")
         else:
@@ -313,7 +313,7 @@ elif user_type == txt["shopper"]:
             new_status = st.selectbox(txt["status_update"], [txt["status_pending"], txt["status_assigned"], txt["status_delivered"], txt["status_cancelled"]])
 
             if st.button("Update Status"):
-                global_idx = assigned.index[update_idx]
+                global_idx = assigned.at[update_idx, "index"]
                 st.session_state.requests.at[global_idx, "Status"] = new_status
                 save_requests(st.session_state.requests)
                 st.success(f"Status updated to {new_status}")
