@@ -146,7 +146,7 @@ def calculate_surcharge(distance_km):
     return int(math.ceil(surcharge / 100.0) * 100)  # round up to nearest 100
 
 # === Campus list ===
-campus_list = ["FBC", "IPAM", "COMAHS", "Njala FT", "MMTU", "Others"]
+campus_list = ["FBC", "IPAM", "COMAHS", "Njala FT", "MMTU", "Limkokwing", "UNIMTECH", "FTC", "LICCSAL", "IMAT", "Bluecrest", "UNIMAK", "EBKUST", "Others"]
 
 # === Page config and title ===
 st.set_page_config(page_title=txt["title"])
