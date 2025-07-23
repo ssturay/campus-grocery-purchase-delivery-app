@@ -318,9 +318,10 @@ elif user_type == txt["shopper"]:
                 st.session_state.requests.at[global_idx, "Status"] = new_status
                 save_requests(st.session_state.requests)
                 st.success(f"Status updated to {new_status}")
-                # === Delivery History ===
-        st.subheader("📜 Delivery History")
+               # === Delivery History ===
+         st.subheader("📜 Delivery History")
 
+# Only show delivery history if shopper_name is provided
     if shopper_name:
         delivery_history = st.session_state.requests[
         (st.session_state.requests["Shopper Name"] == shopper_name) &
@@ -335,6 +336,9 @@ elif user_type == txt["shopper"]:
             "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
             "Delivery Time", "Status", "Rating", "Timestamp"
         ]])
+else:
+    st.info("Please enter your name above to view delivery history.")
+
 
 
 # No rating input or rating display in shopper flow
