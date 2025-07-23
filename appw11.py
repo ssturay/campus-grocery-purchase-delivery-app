@@ -8,23 +8,36 @@ import gspread
 from gspread_dataframe import get_as_dataframe, set_with_dataframe
 from oauth2client.service_account import ServiceAccountCredentials
 
-# === Login Protection ===
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
+# Simple login credentials (can be moved to st.secrets for security)
+username = "admin"
+password = "mypassword123"
 
+# === Login system using secrets ===
 def login():
-    st.title("🔐 CamPDApp Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Login"):
-        if username == st.secrets["credentials"]["username"] and password == st.secrets["credentials"]["password"]:
-            st.session_state.logged_in = True
-            st.rerun()
-        else:
-            st.error("Invalid username or password.")
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
 
-if not st.session_state.logged_in:
-    login()
+    if not st.session_state.authenticated:
+        with st.form("Login"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Login")
+
+            if submitted:
+                correct_user = st.secrets["credentials"]["username"]
+                correct_pass = st.secrets["credentials"]["password"]
+
+                if username == correct_user and password == correct_pass:
+                    st.session_state.authenticated = True
+                    st.success("Login successful!")
+                    st.experimental_rerun()
+                else:
+                    st.error("Invalid credentials")
+
+    return st.session_state.authenticated
+
+# === Authenticate before running app ===
+if not login():
     st.stop()
 
 
