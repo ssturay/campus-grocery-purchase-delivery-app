@@ -319,7 +319,7 @@ elif user_type == txt["shopper"]:
                 save_requests(st.session_state.requests)
                 st.success(f"Status updated to {new_status}")
                # === Delivery History ===
-         st.subheader("📜 Delivery History")
+        st.subheader("📜 Delivery History")
 
 # Only show delivery history if shopper_name is provided
     if shopper_name:
