@@ -157,6 +157,7 @@ user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]
 # === Requester flow ===
 if user_type == txt["requester"]:
     st.subheader("📝 " + txt["submit"])
+
     name = st.text_input(txt["name"])
     requester_contact = st.text_input("📞 Your Contact Number")
     requester_faculty = st.text_input("Department/Faculty")
@@ -189,12 +190,24 @@ if user_type == txt["requester"]:
     preferred_base = st.selectbox("Preferred Shopper Base", surcharge_df["Shopper Base"])
     selected_surcharge = surcharge_options[preferred_base]
 
-    if st.button(txt["submit"]):
-        if not all([name, requester_contact, location_name, item]):
-            st.error("Please fill in all required fields.")
-        elif lat is None or lon is None:
-            st.error("Please provide a valid location.")
-        else:
+    # Check if all mandatory fields are filled (you can add more if needed)
+    all_filled = all([
+        name.strip(),
+        requester_contact.strip(),
+        requester_faculty.strip(),
+        requester_year.strip(),
+        location_name.strip(),
+        item.strip(),
+        qty > 0,
+        max_price >= 0,
+        lat is not None,
+        lon is not None
+    ])
+
+    if not all_filled:
+        st.info("Please fill in all required fields to submit your request.")
+    else:
+        if st.button(txt["submit"]):
             new_row = {
                 "Requester": name,
                 "Requester Faculty/Department": requester_faculty,
@@ -249,6 +262,7 @@ if user_type == txt["requester"]:
                 st.success(txt["rating_thanks"])
             else:
                 st.error("You can only rate after delivery is completed.")
+
 
 # === Shopper flow ===
 elif user_type == txt["shopper"]:
