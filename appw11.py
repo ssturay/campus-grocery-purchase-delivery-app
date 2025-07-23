@@ -7,6 +7,8 @@ from opencage.geocoder import OpenCageGeocode
 import gspread
 from gspread_dataframe import get_as_dataframe, set_with_dataframe
 from oauth2client.service_account import ServiceAccountCredentials
+import folium
+from streamlit_folium import st_folium
 
 # Simple login credentials (can be moved to st.secrets for security)
 username = "admin"
