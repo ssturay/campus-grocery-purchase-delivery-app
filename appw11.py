@@ -314,9 +314,9 @@ elif user_type == txt["shopper"]:
 
     lat_s, lon_s = geocode_location(shopper_current_location)
     if lat_s and lon_s:
-    m = folium.Map(location=[lat_s, lon_s], zoom_start=15)
-    folium.Marker([lat_s, lon_s], tooltip="Shopper Current Location").add_to(m)
-    st_folium(m, width=700, height=450)
+        m = folium.Map(location=[lat_s, lon_s], zoom_start=15)
+        folium.Marker([lat_s, lon_s], tooltip="Shopper Current Location").add_to(m)
+        st_folium(m, width=700, height=450)
 else:
     st.warning("⚠️ Your current location not found.")
 
