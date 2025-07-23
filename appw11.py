@@ -266,22 +266,6 @@ elif user_type == txt["shopper"]:
     else:
         st.warning("⚠️ Your current location not found.")
 
-    # === Delivery History ===
-st.subheader("📜 Delivery History")
-
-history = st.session_state.requests[
-    (st.session_state.requests["Shopper Name"] == shopper_name) &
-    (st.session_state.requests["Status"].isin([txt["status_delivered"], txt["status_cancelled"]]))
-]
-
-if history.empty:
-    st.info("No delivery history yet.")
-else:
-    history = history.sort_values(by="Timestamp", ascending=False)
-    st.dataframe(history[[
-        "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
-        "Delivery Time", "Status", "Rating", "Timestamp"
-    ]])
 
     pending_requests = st.session_state.requests[
         (st.session_state.requests["Status"] == txt["status_pending"]) |
@@ -334,5 +318,23 @@ else:
                 st.session_state.requests.at[global_idx, "Status"] = new_status
                 save_requests(st.session_state.requests)
                 st.success(f"Status updated to {new_status}")
+                # === Delivery History ===
+st.subheader("📜 Delivery History")
+
+if shopper_name:
+    delivery_history = st.session_state.requests[
+        (st.session_state.requests["Shopper Name"] == shopper_name) &
+        (st.session_state.requests["Status"].isin([txt["status_delivered"], txt["status_cancelled"]]))
+    ]
+
+    if delivery_history.empty:
+        st.info("No delivery history available yet.")
+    else:
+        delivery_history = delivery_history.sort_values(by="Timestamp", ascending=False)
+        st.dataframe(delivery_history[[
+            "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
+            "Delivery Time", "Status", "Rating", "Timestamp"
+        ]])
+
 
 # No rating input or rating display in shopper flow
