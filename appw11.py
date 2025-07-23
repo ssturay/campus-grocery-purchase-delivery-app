@@ -62,7 +62,7 @@ if "requests" not in st.session_state:
 # === Language dictionaries ===
 lang_options = {
     "English": {
-        "title": "🛍️ Campus Grocery Purchase & Delivery App (CamPDApp) 🇸🇱",
+        "title": "🛍️🚚 Campus Grocery Purchase & Delivery App (CamPDApp) 🇸🇱",
         "user_role": "You are a:",
         "requester": "Requester (On Campus)",
         "shopper": "Shopper (Downtown)",
@@ -89,7 +89,7 @@ lang_options = {
         "campus_select": "🏫 Select your Campus:"
     },
     "Krio": {
-        "title": "🛍️ Kampos Gɔsri Buy an Delivri Ap (CamPDApp) 🇸🇱",
+        "title": "🛍️🚚 Kampos Gɔsri Buy an Delivri Ap (CamPDApp) 🇸🇱",
         "user_role": "U na:",
         "requester": "Pipul woi wan buy (Kampos pipul)",
         "shopper": "Shopa (Donton)",
