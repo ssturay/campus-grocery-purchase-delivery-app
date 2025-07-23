@@ -319,9 +319,9 @@ elif user_type == txt["shopper"]:
                 save_requests(st.session_state.requests)
                 st.success(f"Status updated to {new_status}")
                 # === Delivery History ===
-st.subheader("📜 Delivery History")
+               st.subheader("📜 Delivery History")
 
-if shopper_name:
+            if shopper_name:
     delivery_history = st.session_state.requests[
         (st.session_state.requests["Shopper Name"] == shopper_name) &
         (st.session_state.requests["Status"].isin([txt["status_delivered"], txt["status_cancelled"]]))
