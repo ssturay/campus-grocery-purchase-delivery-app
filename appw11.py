@@ -266,7 +266,7 @@ elif user_type == txt["shopper"]:
     else:
         st.warning("⚠️ Your current location not found.")
 
-
+    # Show pending and assigned requests
     pending_requests = st.session_state.requests[
         (st.session_state.requests["Status"] == txt["status_pending"]) |
         ((st.session_state.requests["Status"] == txt["status_assigned"]) & (st.session_state.requests["Shopper Name"] == shopper_name))
@@ -300,45 +300,41 @@ elif user_type == txt["shopper"]:
             else:
                 st.error(txt["assigned_error"])
 
-        st.subheader(txt["your_assignments"])
-        assigned = st.session_state.requests[st.session_state.requests["Shopper Name"] == shopper_name].reset_index()
-        if assigned.empty:
-            st.info("No deliveries assigned to you yet.")
-        else:
-            st.dataframe(assigned[[
-                "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
-                "Delivery Time", "Status"
-            ]])
-
-            update_idx = st.number_input("Enter delivery index to update status", min_value=0, max_value=len(assigned) - 1, step=1)
-            new_status = st.selectbox(txt["status_update"], [txt["status_pending"], txt["status_assigned"], txt["status_delivered"], txt["status_cancelled"]])
-
-            if st.button("Update Status"):
-                global_idx = assigned.at[update_idx, "index"]
-                st.session_state.requests.at[global_idx, "Status"] = new_status
-                save_requests(st.session_state.requests)
-                st.success(f"Status updated to {new_status}")
-               # === Delivery History ===
-        st.subheader("📜 Delivery History")
-
-# Only show delivery history if shopper_name is provided
-    if shopper_name:
-        delivery_history = st.session_state.requests[
-        (st.session_state.requests["Shopper Name"] == shopper_name) &
-        (st.session_state.requests["Status"].isin([txt["status_delivered"], txt["status_cancelled"]]))
-    ]
-
-    if delivery_history.empty:
-        st.info("No delivery history available yet.")
+    st.subheader(txt["your_assignments"])
+    assigned = st.session_state.requests[st.session_state.requests["Shopper Name"] == shopper_name].reset_index()
+    if assigned.empty:
+        st.info("No deliveries assigned to you yet.")
     else:
-        delivery_history = delivery_history.sort_values(by="Timestamp", ascending=False)
-        st.dataframe(delivery_history[[
+        st.dataframe(assigned[[
             "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
-            "Delivery Time", "Status", "Rating", "Timestamp"
+            "Delivery Time", "Status"
         ]])
-else:
-    st.info("Please enter your name above to view delivery history.")
 
+        update_idx = st.number_input("Enter delivery index to update status", min_value=0, max_value=len(assigned) - 1, step=1)
+        new_status = st.selectbox(txt["status_update"], [txt["status_pending"], txt["status_assigned"], txt["status_delivered"], txt["status_cancelled"]])
 
+        if st.button("Update Status"):
+            global_idx = assigned.at[update_idx, "index"]
+            st.session_state.requests.at[global_idx, "Status"] = new_status
+            save_requests(st.session_state.requests)
+            st.success(f"Status updated to {new_status}")
 
-# No rating input or rating display in shopper flow
+    # === DELIVERY HISTORY - only if required fields are filled ===
+    if all([shopper_name.strip(), shopper_contact.strip(), shopper_faculty.strip(), shopper_year.strip()]):
+        delivery_history = st.session_state.requests[
+            (st.session_state.requests["Shopper Name"] == shopper_name) &
+            (st.session_state.requests["Status"].isin([txt["status_delivered"], txt["status_cancelled"]]))
+        ]
+
+        st.subheader("📜 Delivery History")
+        if delivery_history.empty:
+            st.info("No delivery history available yet.")
+        else:
+            delivery_history = delivery_history.sort_values(by="Timestamp", ascending=False)
+            st.dataframe(delivery_history[[
+                "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
+                "Delivery Time", "Status", "Rating", "Timestamp"
+            ]])
+    else:
+        st.info("Please fill in all required fields above (Name, Contact, Faculty, Year) to view delivery history.")
+
