@@ -317,8 +317,8 @@ elif user_type == txt["shopper"]:
         m = folium.Map(location=[lat_s, lon_s], zoom_start=15)
         folium.Marker([lat_s, lon_s], tooltip="Shopper Current Location").add_to(m)
         st_folium(m, width=700, height=450)
-else:
-    st.warning("⚠️ Your current location not found.")
+    else:
+        st.warning("⚠️ Your current location not found.")
 
 
     # Show pending and assigned requests
