@@ -318,4 +318,21 @@ elif user_type == txt["shopper"]:
                 save_requests(st.session_state.requests)
                 st.success(f"Status updated to {new_status}")
 
+
+st.subheader("📜 Delivery History")
+
+# Show deliveries that are completed or cancelled
+history = st.session_state.requests[
+    (st.session_state.requests["Shopper Name"] == shopper_name) &
+    (st.session_state.requests["Status"].isin([txt["status_delivered"], txt["status_cancelled"]]))
+]
+
+if history.empty:
+    st.info("No delivery history yet.")
+else:
+    st.dataframe(history[[
+        "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
+        "Delivery Time", "Status", "Rating", "Timestamp"
+    ]])
+
 # No rating input or rating display in shopper flow
