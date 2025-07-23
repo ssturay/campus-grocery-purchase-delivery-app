@@ -206,11 +206,11 @@ if user_type == txt["requester"]:
 
     lat, lon = geocode_location(location_name)
     if lat and lon:
-    m = folium.Map(location=[lat, lon], zoom_start=15)
-    folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
-    st_folium(m, width=700, height=450)
-else:
-    st.warning("⚠️ Location not found.")
+        m = folium.Map(location=[lat, lon], zoom_start=15)
+        folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
+        st_folium(m, width=700, height=450)
+    else:
+        st.warning("⚠️ Location not found.")
 
 
     surcharge_options = {}
