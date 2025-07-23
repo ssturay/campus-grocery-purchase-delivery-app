@@ -30,7 +30,7 @@ def login():
                 if username == correct_user and password == correct_pass:
                     st.session_state.authenticated = True
                     st.success("Login successful!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("Invalid credentials")
 
