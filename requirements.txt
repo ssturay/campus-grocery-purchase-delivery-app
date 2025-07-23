@@ -5,3 +5,5 @@ opencage
 gspread
 gspread_dataframe
 oauth2client
+folium
+streamlit-folium
