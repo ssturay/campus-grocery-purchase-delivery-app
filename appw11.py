@@ -27,7 +27,9 @@ def geocode_location(location_name):
 # === Google Sheets functions ===
 def get_google_sheet(sheet_name="GroceryApp"):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+    import json
+    creds_dict = st.secrets["google_credentials"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
     sheet = client.open(sheet_name).sheet1
     return sheet
