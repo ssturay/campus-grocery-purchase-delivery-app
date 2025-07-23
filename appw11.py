@@ -8,6 +8,26 @@ import gspread
 from gspread_dataframe import get_as_dataframe, set_with_dataframe
 from oauth2client.service_account import ServiceAccountCredentials
 
+# === Login Protection ===
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+def login():
+    st.title("🔐 CamPDApp Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if username == st.secrets["credentials"]["username"] and password == st.secrets["credentials"]["password"]:
+            st.session_state.logged_in = True
+            st.rerun()
+        else:
+            st.error("Invalid username or password.")
+
+if not st.session_state.logged_in:
+    login()
+    st.stop()
+
+
 # === API Key ===
 OPENCAGE_API_KEY = "313dd388b5e6451582d57045f93510a5"
 geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
