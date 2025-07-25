@@ -332,7 +332,7 @@ elif user_type == txt["shopper"]:
     else:
         st.dataframe(pending_requests[[
             "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
-            "Delivery Time", "Preferred Shopper Base", "Surcharge (SLL)", "Status"
+            "Expected Delivery Time", "Preferred Shopper Base", "Surcharge (SLL)", "Status"
         ]])
 
         req_index = st.number_input(txt["index_prompt"], min_value=0, max_value=len(pending_requests) - 1, step=1)
@@ -388,7 +388,7 @@ elif user_type == txt["shopper"]:
             delivery_history = delivery_history.sort_values(by="Timestamp", ascending=False)
             st.dataframe(delivery_history[[
                 "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
-                "Delivery Time", "Status", "Rating", "Timestamp"
+                "Expected Delivery Time", "Status", "Rating", "Timestamp"
             ]])
     else:
         st.info("Please fill in all required fields above (Name, Contact, Faculty, Year) to view delivery history.")
