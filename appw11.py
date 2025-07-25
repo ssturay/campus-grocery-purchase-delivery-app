@@ -88,7 +88,7 @@ if "requests" not in st.session_state:
         st.session_state.requests = pd.DataFrame(columns=[
             "Requester", "Requester Faculty/Department", "Requester Year/Level", "Requester Contact",
             "Requester Location", "Requester Coordinates", "Campus", "Item", "Qty", "Max Price (SLL)",
-            "Delivery Time", "Preferred Shopper Base", "Surcharge (SLL)", "Assigned Shopper",
+            "Expected Delivery Time", "Preferred Shopper Base", "Surcharge (SLL)", "Assigned Shopper",
             "Shopper Name", "Shopper Faculty/Department", "Shopper Year/Level", "Shopper Contact",
             "Shopper Location", "Shopper Coordinates", "Timestamp", "Status", "Rating"
         ])
@@ -201,7 +201,7 @@ if user_type == txt["requester"]:
     item = st.text_input("Item")
     qty = st.number_input("Quantity", min_value=1, value=1)
     max_price = st.number_input("Max Price (SLL)", min_value=0, value=20000)
-    delivery_time = st.time_input("Delivery Time")
+    delivery_time = st.time_input("Expected Delivery Time")
     location_name = st.text_input(txt["location_prompt"], "FBC")
 
     lat, lon = geocode_location(location_name)
@@ -285,7 +285,7 @@ if user_type == txt["requester"]:
         st.info(txt["no_requests"])
     else:
         st.dataframe(your_requests[[
-            "Item", "Qty", "Max Price (SLL)", "Delivery Time", "Status", "Shopper Name", "Rating"
+            "Item", "Qty", "Max Price (SLL)", "Expected Delivery Time", "Status", "Shopper Name", "Rating"
         ]])
 
         rate_idx = st.number_input("Enter the index of request to rate", min_value=0, max_value=len(your_requests) - 1, step=1, key="rate_idx")
