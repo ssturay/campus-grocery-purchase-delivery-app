@@ -332,7 +332,7 @@ elif user_type == txt["shopper"]:
     else:
         st.dataframe(pending_requests[[
             "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
-            "Delivery Time", "Preferred Shopper Base", "Surcharge (SLL)", "Status"
+            "Expected Delivery Time", "Preferred Shopper Base", "Surcharge (SLL)", "Status"
         ]])
 
         req_index = st.number_input(txt["index_prompt"], min_value=0, max_value=len(pending_requests) - 1, step=1)
@@ -362,7 +362,7 @@ elif user_type == txt["shopper"]:
     else:
         st.dataframe(assigned[[
             "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
-            "Delivery Time", "Status"
+            "Expected Delivery Time", "Status"
         ]])
 
         update_idx = st.number_input("Enter delivery index to update status", min_value=0, max_value=len(assigned) - 1, step=1)
