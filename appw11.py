@@ -93,6 +93,8 @@ if "requests" not in st.session_state:
             "Shopper Location", "Shopper Coordinates", "Timestamp", "Status", "Rating"
         ])
 
+if "Delivery Time" in st.session_state.requests.columns:
+    st.session_state.requests.rename(columns={"Delivery Time": "Expected Delivery Time"}, inplace=True)
 
 # === Language dictionaries ===
 lang_options = {
