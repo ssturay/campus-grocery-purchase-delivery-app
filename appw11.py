@@ -257,7 +257,7 @@ if user_type == txt["requester"]:
                 "Item": item,
                 "Qty": qty,
                 "Max Price (SLL)": max_price,
-                "Delivery Time": delivery_time.strftime("%H:%M"),
+                "Expected Delivery Time": delivery_time.strftime("%H:%M"),
                 "Preferred Shopper Base": preferred_base,
                 "Surcharge (SLL)": selected_surcharge,
                 "Assigned Shopper": "Unassigned",
