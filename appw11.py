@@ -280,6 +280,7 @@ if user_type == txt["requester"]:
     your_requests = st.session_state.requests[
         (st.session_state.requests["Requester"] == name)
     ].reset_index()
+    your_requests = your_requests.rename(columns={"Delivery Time": "Expected Delivery Time"})
 
     if your_requests.empty:
         st.info(txt["no_requests"])
@@ -332,7 +333,7 @@ elif user_type == txt["shopper"]:
     else:
         st.dataframe(pending_requests[[
             "Requester", "Requester Location", "Item", "Qty", "Max Price (SLL)",
-            "Delivery Time", "Preferred Shopper Base", "Surcharge (SLL)", "Status"
+            "Expected Delivery Time", "Preferred Shopper Base", "Surcharge (SLL)", "Status"
         ]])
 
         req_index = st.number_input(txt["index_prompt"], min_value=0, max_value=len(pending_requests) - 1, step=1)
