@@ -172,7 +172,8 @@ shopper_bases = {
     "Rawdon Street": (8.4856, -13.2338),
     "New England": (8.4746, -13.2500),
     "Hill Station": (8.4698, -13.2661),
-    "Hastings": (8.3873, -13.1272)
+    "Hastings": (8.3873, -13.1272),
+    "Wilberforce": (8.4678, -13.255)
 }
 
 # === Helper function to calculate surcharge ===
@@ -183,7 +184,7 @@ def calculate_surcharge(distance_km):
     return int(math.ceil(surcharge / 100.0) * 100)  # round up to nearest 100
 
 # === Campus list ===
-campus_list = ["FBC", "IPAM", "COMAHS", "Njala FT", "MMTU", "Limkokwing", "UNIMTECH", "FTC", "LICCSAL", "IMAT", "Bluecrest", "UNIMAK", "EBKUST", "Others"]
+campus_list = ["FBC", "IPAM", "COMAHS", "Njala FT", "MMTU", "Limkokwing", "UNIMTECH", "IAMTECH", "FTC", "LICCSAL", "IMAT", "Bluecrest", "UNIMAK", "EBKUST", "Others"]
 
 # === Page config and title ===
 st.set_page_config(page_title=txt["title"])
