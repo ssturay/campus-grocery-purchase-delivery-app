@@ -10,7 +10,7 @@ import folium
 from streamlit_folium import st_folium
 import uuid
 
-# === LOGIN SYSTEM ===
+# === LOGIN SYSTEM FIXED ===
 def login():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
@@ -20,6 +20,7 @@ def login():
             username_input = st.text_input("Username")
             password_input = st.text_input("Password", type="password")
             submitted = st.form_submit_button("Login")
+            st.session_state._login_success = False  # Temp flag
 
             if submitted:
                 correct_user = st.secrets["credentials"]["username"]
@@ -27,10 +28,15 @@ def login():
 
                 if username_input == correct_user and password_input == correct_pass:
                     st.session_state.authenticated = True
-                    st.success("Login successful!")
-                    st.experimental_rerun()
+                    st.session_state._login_success = True
                 else:
                     st.error("Invalid credentials")
+
+        # Rerun outside form
+        if st.session_state.get("_login_success"):
+            st.success("Login successful!")
+            st.experimental_rerun()
+
     return st.session_state.authenticated
 
 if not login():
@@ -51,7 +57,7 @@ def geocode_location(location_name):
         print(f"Geocoding error: {e}")
     return None, None
 
-# === GOOGLE SHEETS ===
+# === GOOGLE SHEETS FIX ===
 def get_google_sheet(sheet_name="GroceryApp"):
     try:
         creds_dict = st.secrets["google_credentials"]
