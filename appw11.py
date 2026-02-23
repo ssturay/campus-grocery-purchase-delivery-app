@@ -219,41 +219,67 @@ if user_type == txt["requester"]:
     delivery_time = st.time_input("Expected Delivery Time")
 
     location_name = st.text_input(txt["location_prompt"], "FBC")
-    lat, lon = geocode_location(location_name)
 
-    if lat and lon:
+    # === Geocode safely ===
+    lat, lon = None, None
+    if location_name.strip():
+        lat, lon = geocode_location(location_name)
+
+    # === Show map only if valid ===
+    if lat is not None and lon is not None:
         m = folium.Map(location=[lat, lon], zoom_start=15)
         folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
         st_folium(m, width=700, height=450)
     else:
-        st.warning("⚠️ Location not found.")
+        st.warning("⚠️ Location not found. Please enter a clearer campus or area.")
 
+    # === Compute surcharge ONLY if coordinates exist ===
     surcharge_options = {}
-    for base_name, (base_lat, base_lon) in shopper_bases.items():
-        dist = geodesic((lat, lon), (base_lat, base_lon)).km
-        surcharge_options[base_name] = calculate_surcharge(dist)
 
-    surcharge_df = pd.DataFrame([
-        {"Shopper Base": k, "Estimated Surcharge (SLL)": v}
-        for k, v in sorted(surcharge_options.items(), key=lambda x: x[1])
-    ])
+    if lat is not None and lon is not None:
+        for base_name, (base_lat, base_lon) in shopper_bases.items():
+            dist = geodesic((lat, lon), (base_lat, base_lon)).km
+            surcharge_options[base_name] = calculate_surcharge(dist)
 
-    st.markdown("### Estimated Surcharges")
-    st.dataframe(surcharge_df)
+        surcharge_df = pd.DataFrame([
+            {"Shopper Base": k, "Estimated Surcharge (SLL)": v}
+            for k, v in sorted(surcharge_options.items(), key=lambda x: x[1])
+        ])
 
-    preferred_base = st.selectbox("Preferred Shopper Base", surcharge_df["Shopper Base"])
-    selected_surcharge = surcharge_options[preferred_base]
+        st.markdown("### Estimated Surcharges")
+        st.dataframe(surcharge_df)
 
+        preferred_base = st.selectbox("Preferred Shopper Base", surcharge_df["Shopper Base"])
+        selected_surcharge = surcharge_options[preferred_base]
+    else:
+        preferred_base = None
+        selected_surcharge = None
+
+    # === Validation ===
     all_filled = all([
-        name.strip(), requester_contact.strip(), requester_faculty.strip(),
-        requester_year.strip(), location_name.strip(), item.strip(),
-        qty > 0, max_price >= 0, lat is not None, lon is not None
+        name.strip(),
+        requester_contact.strip(),
+        requester_faculty.strip(),
+        requester_year.strip(),
+        requester_campus,
+        item.strip(),
+        qty > 0,
+        max_price >= 0,
+        lat is not None,
+        lon is not None,
+        preferred_base is not None
     ])
 
     if not all_filled:
-        st.info("Please fill in all required fields to submit your request.")
-    else:
-        if st.button(txt["submit"]):
+        st.info("Please fill in all required fields and ensure location is valid.")
+
+    # === Submit button (ALWAYS RENDERED) ===
+    submit_clicked = st.button(txt["submit"])
+
+    if submit_clicked:
+        if not all_filled:
+            st.error("⚠️ Cannot submit. Missing or invalid fields.")
+        else:
             new_row = {
                 "Requester": name,
                 "Requester Faculty/Department": requester_faculty,
@@ -280,10 +306,17 @@ if user_type == txt["requester"]:
                 "Rating": None
             }
 
+            # === Update session state ===
             st.session_state.requests = pd.concat(
                 [st.session_state.requests, pd.DataFrame([new_row])],
                 ignore_index=True
             )
 
-            save_requests(st.session_state.requests)
-            st.success(txt["request_submitted"])
+            # === Save to Google Sheets safely ===
+            try:
+                save_requests(st.session_state.requests)
+                st.success(txt["request_submitted"])
+                st.rerun()
+            except Exception as e:
+                st.error("⚠️ Saved locally but failed to write to Google Sheets.")
+                st.exception(e)
