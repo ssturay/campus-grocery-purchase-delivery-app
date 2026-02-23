@@ -10,7 +10,7 @@ import folium
 from streamlit_folium import st_folium
 import uuid
 
-# === Login system ===
+# === Login System ===
 def login():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
@@ -31,7 +31,6 @@ def login():
                     st.experimental_rerun()
                 else:
                     st.error("Invalid credentials")
-
     return st.session_state.authenticated
 
 if not login():
@@ -52,12 +51,16 @@ def geocode_location(location_name):
         print(f"Geocoding error: {e}")
     return None, None
 
-# === Google Sheets functions ===
+# === Google Sheets ===
 def get_google_sheet(sheet_name="GroceryApp"):
-    creds_dict = st.secrets["google_credentials"]
-    client = gspread.service_account_from_dict(creds_dict)
-    sheet = client.open(sheet_name).sheet1
-    return sheet
+    try:
+        creds_dict = st.secrets["google_credentials"]
+        client = gspread.service_account_from_dict(creds_dict)
+        sheet = client.open(sheet_name).sheet1
+        return sheet
+    except Exception as e:
+        st.error(f"⚠️ Google Sheets authentication failed: {e}")
+        st.stop()
 
 def load_requests():
     try:
@@ -90,7 +93,7 @@ def save_requests(df):
 if "requests" not in st.session_state:
     st.session_state.requests = load_requests()
 
-# === Language dictionaries ===
+# === Language Dictionaries ===
 lang_options = {
     "English": {
         "title": "🛍️🚚 Campus Grocery Purchase & Delivery App (CamPDApp) 🇸🇱",
@@ -106,6 +109,14 @@ lang_options = {
         "status_assigned": "Assigned",
         "status_delivered": "Delivered",
         "status_cancelled": "Cancelled",
+        "accept_request": "📦 Accept This Request",
+        "assigned_success": "You've been assigned to deliver request #",
+        "assigned_error": "Invalid index or empty list",
+        "your_assignments": "📋 Your Assigned Deliveries",
+        "rate_request": "⭐ Rate this delivery (1-5):",
+        "submit_rating": "Submit Rating",
+        "rating_thanks": "Thanks for rating!",
+        "no_requests": "No requests available."
     },
     "Krio": {
         "title": "🛍️🚚 Kampos Gɔsri Buy an Delivri Ap (CamPDApp) 🇸🇱",
@@ -121,13 +132,21 @@ lang_options = {
         "status_assigned": "Don take",
         "status_delivered": "Don deliver",
         "status_cancelled": "Kansul",
+        "accept_request": "📦 Accept dis request",
+        "assigned_success": "U don accept fɔ delivr d request #",
+        "assigned_error": "Index no lek valid or list empty",
+        "your_assignments": "📋 Tin dem woi u for delivr",
+        "rate_request": "⭐ Rate dis delivri (1-5):",
+        "submit_rating": "Sen Rate",
+        "rating_thanks": "Tenki for rate!",
+        "no_requests": "No request rynna."
     }
 }
 
 selected_language = st.sidebar.selectbox("Language", ["English", "Krio"])
 txt = lang_options[selected_language]
 
-# === Shopper bases ===
+# === Shopper Bases ===
 shopper_bases = {
     "Lumley": (8.4571, -13.2924),
     "Aberdeen": (8.4848, -13.2827),
@@ -145,12 +164,10 @@ shopper_bases = {
     "Wilberforce": (8.4678, -13.255)
 }
 
-# === Campus list and coordinates ===
-campus_list = [
-    "FBC", "IPAM", "COMAHS", "Njala FT", "MMTU", "Limkokwing",
-    "UNIMTECH", "IAMTECH", "FTC", "LICCSAL", "IMAT",
-    "Bluecrest", "UNIMAK", "EBKUST", "Others"
-]
+# === Campus List & Coordinates ===
+campus_list = ["FBC", "IPAM", "COMAHS", "Njala FT", "MMTU", "Limkokwing",
+               "UNIMTECH", "IAMTECH", "FTC", "LICCSAL", "IMAT", "Bluecrest",
+               "UNIMAK", "EBKUST", "Others"]
 
 campus_coordinates = {
     "FBC": (8.4840, -13.2317),
@@ -169,18 +186,21 @@ campus_coordinates = {
     "EBKUST": (8.4700, -13.2600)
 }
 
-# === Helper function for surcharge ===
+# === Helper Functions ===
 def calculate_surcharge(distance_km):
-    base_fee = 1000   # SLL
-    per_km_fee = 500  # SLL per km
+    base_fee = 1000
+    per_km_fee = 500
     return int(round(base_fee + per_km_fee * distance_km))
 
-# === Page setup ===
+def generate_tracking_id():
+    return str(uuid.uuid4())[:8]
+
+# === Page Setup ===
 st.set_page_config(page_title=txt["title"])
 st.title(txt["title"])
 user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]])
 
-# === Requester Flow ===
+# === REQUESTER FLOW ===
 if user_type == txt["requester"]:
     st.subheader(txt["submit"])
     name = st.text_input(txt["name"])
@@ -193,19 +213,19 @@ if user_type == txt["requester"]:
     max_price = st.number_input("Max Price (SLL)", min_value=0, value=20000)
     delivery_time = st.time_input("Expected Delivery Time")
 
-    # === Map coordinates auto-sync from campus ===
+    # Auto-sync campus coordinates
     default_lat, default_lon = campus_coordinates.get(campus, (8.4840, -13.2317))
     location_name = st.text_input(txt["location_prompt"], campus)
     lat, lon = geocode_location(location_name)
     if lat is None or lon is None:
         lat, lon = default_lat, default_lon
 
-    # === Show map ===
+    # Map
     m = folium.Map(location=[lat, lon], zoom_start=15)
     folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
     st_folium(m, width=700, height=450)
 
-    # === Calculate surcharge per shopper base ===
+    # Calculate surcharge
     surcharge_options = {}
     for base_name, (base_lat, base_lon) in shopper_bases.items():
         dist = geodesic((lat, lon), (base_lat, base_lon)).km
@@ -221,11 +241,12 @@ if user_type == txt["requester"]:
     preferred_base = st.selectbox("Preferred Shopper Base", surcharge_df["Shopper Base"])
     selected_surcharge = surcharge_options[preferred_base]
 
+    # Submit request
     all_filled = all([name.strip(), contact.strip(), faculty.strip(), year.strip(),
                       item.strip(), qty > 0, max_price >= 0, lat is not None, lon is not None])
 
     if all_filled and st.button(txt["submit"]):
-        tracking_id = str(uuid.uuid4())[:8]  # 8-char tracking ID
+        tracking_id = generate_tracking_id()
         new_row = {
             "Tracking ID": tracking_id,
             "Requester": name,
@@ -256,5 +277,5 @@ if user_type == txt["requester"]:
             [st.session_state.requests, pd.DataFrame([new_row])],
             ignore_index=True
         )
-        if save_requests(st.session_state.requests):
-            st.success(txt["request_submitted"])
+        save_requests(st.session_state.requests)
+        st.success(txt["request_submitted"])
