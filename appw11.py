@@ -7,6 +7,9 @@ from opencage.geocoder import OpenCageGeocode
 import folium
 from streamlit_folium import st_folium
 import uuid
+import gspread
+from google.oauth2.service_account import Credentials
+from gspread_dataframe import set_with_dataframe, get_as_dataframe
 
 # === LOGIN SYSTEM ===
 def login():
@@ -52,7 +55,7 @@ lang_options = {
         "available_requests": "🛒 Available Requests to Deliver",
         "accept_request": "📦 Accept This Request",
         "assigned_success": "You've been assigned to deliver request #",
-        "assigned_error": "Invalid index or empty list",
+        "assigned_error": "Invalid tracking ID or empty list",
         "your_assignments": "📋 Your Assigned Deliveries",
         "status_pending": "Pending",
         "status_assigned": "Assigned",
@@ -77,7 +80,7 @@ lang_options = {
         "available_requests": "🛒 Request woi de fɔ delivri",
         "accept_request": "📦 Accept dis request",
         "assigned_success": "U don accept fɔ delivr d request #",
-        "assigned_error": "Index no lek valid or list empty",
+        "assigned_error": "Tracking ID no lek valid or list empty",
         "your_assignments": "📋 Tin dem woi u for delivr",
         "status_pending": "Wetin de wait",
         "status_assigned": "Don take",
@@ -95,7 +98,6 @@ lang_options = {
 selected_language = st.sidebar.selectbox("Language", ["English", "Krio"])
 txt = lang_options[selected_language]
 
-# === PAGE CONFIG ===
 st.set_page_config(page_title=txt["title"])
 st.title(txt["title"])
 
@@ -117,10 +119,8 @@ campus_coordinates = {
     "EBKUST": (8.4700, -13.2600)
 }
 
-# === CAMPUS LIST ===
 campus_list = list(campus_coordinates.keys())
 
-# === SHOPPER BASES ===
 shopper_bases = {
     "Lumley": (8.4571, -13.2924),
     "Aberdeen": (8.4848, -13.2827),
@@ -138,24 +138,51 @@ shopper_bases = {
     "Wilberforce": (8.4678, -13.255)
 }
 
-# === HELPER FUNCTIONS ===
 def calculate_surcharge(distance_km):
-    base_fee = 1000  # Example SLL base
-    per_km_fee = 500  # Example SLL per km
+    base_fee = 1000
+    per_km_fee = 500
     surcharge = base_fee + (per_km_fee * distance_km)
     return int(math.ceil(surcharge / 100.0) * 100)
 
+# === GOOGLE SHEETS SETUP ===
+def get_google_sheet(sheet_name="GroceryApp"):
+    creds_dict = st.secrets["google_credentials"]
+    creds = Credentials.from_service_account_info(creds_dict, scopes=[
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ])
+    client = gspread.authorize(creds)
+    sheet = client.open(sheet_name).sheet1
+    return sheet
+
+def load_requests():
+    try:
+        sheet = get_google_sheet()
+        df = get_as_dataframe(sheet, evaluate_formulas=True)
+        df = df.dropna(how='all')
+        return df
+    except Exception:
+        return pd.DataFrame(columns=[
+            "Tracking ID", "Requester", "Requester Faculty/Department", "Requester Year/Level",
+            "Requester Contact", "Requester Location", "Requester Coordinates",
+            "Campus", "Item", "Qty", "Max Price (SLL)", "Expected Delivery Time",
+            "Preferred Shopper Base", "Surcharge (SLL)", "Assigned Shopper",
+            "Shopper Name", "Shopper Faculty/Department", "Shopper Year/Level",
+            "Shopper Contact", "Shopper Location", "Shopper Coordinates",
+            "Timestamp", "Status", "Rating"
+        ])
+
+def save_requests(df):
+    try:
+        sheet = get_google_sheet()
+        sheet.clear()
+        set_with_dataframe(sheet, df)
+    except Exception as e:
+        st.error(f"⚠️ Failed to save request: {e}")
+
 # === SESSION INIT ===
 if "requests" not in st.session_state:
-    st.session_state.requests = pd.DataFrame(columns=[
-        "Tracking ID", "Requester", "Requester Faculty/Department", "Requester Year/Level",
-        "Requester Contact", "Requester Location", "Requester Coordinates",
-        "Campus", "Item", "Qty", "Max Price (SLL)", "Expected Delivery Time",
-        "Preferred Shopper Base", "Surcharge (SLL)", "Assigned Shopper",
-        "Shopper Name", "Shopper Faculty/Department", "Shopper Year/Level",
-        "Shopper Contact", "Shopper Location", "Shopper Coordinates",
-        "Timestamp", "Status", "Rating"
-    ])
+    st.session_state.requests = load_requests()
 
 # === USER TYPE ===
 user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]])
@@ -175,9 +202,8 @@ if user_type == txt["requester"]:
     max_price = st.number_input("Max Price (SLL)", min_value=0, value=20000)
     delivery_time = st.time_input("Expected Delivery Time")
 
-    # === AUTO PICK CAMPUS COORDINATES ===
+    # === AUTO CAMPUS COORDS + MAP ===
     lat, lon = campus_coordinates.get(requester_campus, (None, None))
-
     if lat and lon:
         m = folium.Map(location=[lat, lon], zoom_start=16)
         folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
@@ -185,78 +211,66 @@ if user_type == txt["requester"]:
     else:
         st.warning("⚠️ Location not found.")
 
-    # === SURCHARGE CALCULATION ===
-    surcharge_options = {}
-    for base_name, (base_lat, base_lon) in shopper_bases.items():
-        dist = geodesic((lat, lon), (base_lat, base_lon)).km
-        surcharge_options[base_name] = calculate_surcharge(dist)
-
-    surcharge_df = pd.DataFrame([
-        {"Shopper Base": k, "Estimated Surcharge (SLL)": v}
-        for k, v in sorted(surcharge_options.items(), key=lambda x: x[1])
-    ])
-
+    # SURCHARGE
+    surcharge_options = {k: calculate_surcharge(geodesic((lat, lon), v).km)
+                         for k, v in shopper_bases.items()}
+    surcharge_df = pd.DataFrame([{"Shopper Base": k, "Estimated Surcharge (SLL)": v} 
+                                 for k, v in sorted(surcharge_options.items(), key=lambda x:x[1])])
     st.markdown("### Estimated Surcharges")
     st.dataframe(surcharge_df)
 
     preferred_base = st.selectbox("Preferred Shopper Base", surcharge_df["Shopper Base"])
     selected_surcharge = surcharge_options[preferred_base]
 
-    all_filled = all([
-        name.strip(), requester_contact.strip(), requester_faculty.strip(),
-        requester_year.strip(), item.strip(), qty > 0, max_price >= 0
-    ])
+    all_filled = all([name.strip(), requester_contact.strip(), requester_faculty.strip(),
+                      requester_year.strip(), item.strip(), qty>0, max_price>=0])
 
-    if not all_filled:
-        st.info("Please fill in all required fields to submit your request.")
-    else:
-        if st.button(txt["submit"]):
-            tracking_id = str(uuid.uuid4())[:8]  # Short tracking ID
-            new_row = {
-                "Tracking ID": tracking_id,
-                "Requester": name,
-                "Requester Faculty/Department": requester_faculty,
-                "Requester Year/Level": requester_year,
-                "Requester Contact": requester_contact,
-                "Requester Location": requester_campus,
-                "Requester Coordinates": f"{lat},{lon}",
-                "Campus": requester_campus,
-                "Item": item,
-                "Qty": qty,
-                "Max Price (SLL)": max_price,
-                "Expected Delivery Time": delivery_time.strftime("%H:%M"),
-                "Preferred Shopper Base": preferred_base,
-                "Surcharge (SLL)": selected_surcharge,
-                "Assigned Shopper": "Unassigned",
-                "Shopper Name": "",
-                "Shopper Faculty/Department": "",
-                "Shopper Year/Level": "",
-                "Shopper Contact": "",
-                "Shopper Location": "",
-                "Shopper Coordinates": "",
-                "Timestamp": datetime.utcnow().isoformat(),
-                "Status": txt["status_pending"],
-                "Rating": None
-            }
-            st.session_state.requests = pd.concat([st.session_state.requests, pd.DataFrame([new_row])], ignore_index=True)
-            st.success(f"{txt['request_submitted']} Tracking ID: {tracking_id}")
+    if all_filled and st.button(txt["submit"]):
+        tracking_id = str(uuid.uuid4())[:8]
+        new_row = {
+            "Tracking ID": tracking_id,
+            "Requester": name,
+            "Requester Faculty/Department": requester_faculty,
+            "Requester Year/Level": requester_year,
+            "Requester Contact": requester_contact,
+            "Requester Location": requester_campus,
+            "Requester Coordinates": f"{lat},{lon}",
+            "Campus": requester_campus,
+            "Item": item,
+            "Qty": qty,
+            "Max Price (SLL)": max_price,
+            "Expected Delivery Time": delivery_time.strftime("%H:%M"),
+            "Preferred Shopper Base": preferred_base,
+            "Surcharge (SLL)": selected_surcharge,
+            "Assigned Shopper": "Unassigned",
+            "Shopper Name": "",
+            "Shopper Faculty/Department": "",
+            "Shopper Year/Level": "",
+            "Shopper Contact": "",
+            "Shopper Location": "",
+            "Shopper Coordinates": "",
+            "Timestamp": datetime.utcnow().isoformat(),
+            "Status": txt["status_pending"],
+            "Rating": None
+        }
+        st.session_state.requests = pd.concat([st.session_state.requests, pd.DataFrame([new_row])], ignore_index=True)
+        save_requests(st.session_state.requests)
+        st.success(f"{txt['request_submitted']} Tracking ID: {tracking_id}")
 
 # === SHOPPER FLOW ===
 elif user_type == txt["shopper"]:
     st.subheader(txt["available_requests"])
     df = st.session_state.requests
-    available_df = df[df["Assigned Shopper"] == "Unassigned"]
-
+    available_df = df[df["Assigned Shopper"]=="Unassigned"]
     if available_df.empty:
         st.info(txt["no_requests"])
     else:
-        st.dataframe(available_df[[
-            "Tracking ID", "Requester", "Item", "Qty", "Campus", "Preferred Shopper Base", "Surcharge (SLL)", "Status"
-        ]])
+        st.dataframe(available_df[["Tracking ID","Requester","Item","Qty","Campus","Preferred Shopper Base","Surcharge (SLL)","Status"]])
         track_id_input = st.text_input("Enter Tracking ID to accept request")
         if st.button(txt["accept_request"]):
             if track_id_input in available_df["Tracking ID"].values:
-                st.session_state.requests.loc[st.session_state.requests["Tracking ID"] == track_id_input, "Assigned Shopper"] = "Accepted"
+                st.session_state.requests.loc[st.session_state.requests["Tracking ID"]==track_id_input,"Assigned Shopper"]="Accepted"
+                save_requests(st.session_state.requests)
                 st.success(f"{txt['assigned_success']}{track_id_input}")
             else:
                 st.error(txt["assigned_error"])
