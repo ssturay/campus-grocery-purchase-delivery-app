@@ -218,22 +218,27 @@ if user_type == txt["requester"]:
     max_price = st.number_input("Max Price (SLL)", min_value=0, value=20000)
     delivery_time = st.time_input("Expected Delivery Time")
 
-    location_name = st.text_input(txt["location_prompt"], "FBC")
+    location_name = st.text_input(txt["location_prompt"], requester_campus)
 
-    # === Geocode safely ===
+    # === Determine coordinates (Campus lock or geocode) ===
     lat, lon = None, None
-    if location_name.strip():
-        lat, lon = geocode_location(location_name)
 
-    # === Show map only if valid ===
+    if requester_campus in campus_coordinates:
+        lat, lon = campus_coordinates[requester_campus]
+        st.success(f"📍 Using fixed campus location for {requester_campus}")
+    else:
+        if location_name.strip():
+            lat, lon = geocode_location(location_name)
+
+    # === MAP DISPLAY ===
     if lat is not None and lon is not None:
         m = folium.Map(location=[lat, lon], zoom_start=15)
         folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
         st_folium(m, width=700, height=450)
     else:
-        st.warning("⚠️ Location not found. Please enter a clearer campus or area.")
+        st.warning("⚠️ Location not found. Please enter a clearer area.")
 
-    # === Compute surcharge ONLY if coordinates exist ===
+    # === SURCHARGE CALCULATION (SAFE) ===
     surcharge_options = {}
 
     if lat is not None and lon is not None:
@@ -250,12 +255,12 @@ if user_type == txt["requester"]:
         st.dataframe(surcharge_df)
 
         preferred_base = st.selectbox("Preferred Shopper Base", surcharge_df["Shopper Base"])
-        selected_surcharge = surcharge_options[preferred_base]
+        selected_surcharge = surcharge_options.get(preferred_base, None)
     else:
         preferred_base = None
         selected_surcharge = None
 
-    # === Validation ===
+    # === VALIDATION ===
     all_filled = all([
         name.strip(),
         requester_contact.strip(),
@@ -271,16 +276,13 @@ if user_type == txt["requester"]:
     ])
 
     if not all_filled:
-        st.info("Please fill in all required fields and ensure location is valid.")
+        st.info("Please fill in all required fields to submit your request.")
+    else:
+        if st.button(txt["submit"]):
+            tracking_id = generate_tracking_id()
 
-    # === Submit button (ALWAYS RENDERED) ===
-    submit_clicked = st.button(txt["submit"])
-
-    if submit_clicked:
-        if not all_filled:
-            st.error("⚠️ Cannot submit. Missing or invalid fields.")
-        else:
             new_row = {
+                "Tracking ID": tracking_id,
                 "Requester": name,
                 "Requester Faculty/Department": requester_faculty,
                 "Requester Year/Level": requester_year,
@@ -306,17 +308,15 @@ if user_type == txt["requester"]:
                 "Rating": None
             }
 
-            # === Update session state ===
             st.session_state.requests = pd.concat(
                 [st.session_state.requests, pd.DataFrame([new_row])],
                 ignore_index=True
             )
 
-            # === Save to Google Sheets safely ===
+            # === SAFE SAVE TO GOOGLE SHEETS ===
             try:
                 save_requests(st.session_state.requests)
-                st.success(txt["request_submitted"])
-                st.rerun()
+                st.success(f"{txt['request_submitted']} 🚚 Tracking ID: {tracking_id}")
             except Exception as e:
-                st.error("⚠️ Saved locally but failed to write to Google Sheets.")
-                st.exception(e)
+                st.error("⚠️ Saved locally but Google Sheets failed. Check credentials.")
+                st.write(e)
