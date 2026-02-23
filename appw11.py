@@ -55,26 +55,24 @@ def geocode_location(location_name):
         pass
     return None, None
 
+# === Google Sheets functions ===
 def get_google_sheet(sheet_name="GroceryApp"):
-    try:
-        scope = [
-            "https://spreadsheets.google.com/feeds",
-            "https://www.googleapis.com/auth/drive"
-        ]
-        creds_dict = st.secrets["google_credentials"]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        client = gspread.authorize(creds)
-        return client.open(sheet_name).sheet1
-    except Exception as e:
-        st.error("⚠️ Google Sheets authentication failed. Check secrets formatting.")
-        st.stop()
-
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    import json
+    creds_dict = st.secrets["google_credentials"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+    sheet = client.open(sheet_name).sheet1
+    return sheet
 
 def load_requests():
     sheet = get_google_sheet()
     df = get_as_dataframe(sheet)
-    return df.dropna(how='all')
-
+    df = df.dropna(how='all')
+    return df
 
 def save_requests(df):
     sheet = get_google_sheet()
