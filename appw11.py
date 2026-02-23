@@ -231,41 +231,62 @@ if user_type == txt["requester"]:
 
     location_name = st.text_input(txt["location_prompt"], requester_campus)
 
-# === USE CAMPUS COORDINATES FIRST, ELSE GEOCODE ===
-if requester_campus in campus_coordinates:
-    lat, lon = campus_coordinates[requester_campus]
-else:
+    # === Try geocode user-typed location ===
     lat, lon = geocode_location(location_name)
 
+    # === Fallback: use campus name if location fails ===
+    if lat is None or lon is None:
+        lat, lon = geocode_location(requester_campus)
+        if lat and lon:
+            st.info("📍 Using campus location for distance calculation.")
+        else:
+            st.warning("⚠️ Location not found. Please enter a valid campus or area.")
+
+    # === Show map only if valid coordinates ===
     if lat and lon:
         m = folium.Map(location=[lat, lon], zoom_start=15)
         folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
         st_folium(m, width=700, height=450)
-    else:
-        st.warning("⚠️ Location not found.")
 
+    # === Compute surcharge only when coordinates exist ===
     surcharge_options = {}
 
-if lat and lon:
-    for base_name, (base_lat, base_lon) in shopper_bases.items():
-        dist = geodesic((lat, lon), (base_lat, base_lon)).km
-        surcharge_options[base_name] = calculate_surcharge(dist)
+    if lat and lon:
+        for base_name, (base_lat, base_lon) in shopper_bases.items():
+            dist = geodesic((lat, lon), (base_lat, base_lon)).km
+            surcharge_options[base_name] = calculate_surcharge(dist)
 
-    surcharge_df = pd.DataFrame([
-        {"Shopper Base": k, "Estimated Surcharge (SLL)": v}
-        for k, v in sorted(surcharge_options.items(), key=lambda x: x[1])
-    ])
+        surcharge_df = pd.DataFrame([
+            {"Shopper Base": k, "Estimated Surcharge (SLL)": v}
+            for k, v in sorted(surcharge_options.items(), key=lambda x: x[1])
+        ])
 
-    st.markdown("### Estimated Surcharges")
-    st.dataframe(surcharge_df)
+        st.markdown("### Estimated Surcharges")
+        st.dataframe(surcharge_df)
 
-    preferred_base = st.selectbox("Preferred Shopper Base", surcharge_df["Shopper Base"])
-    selected_surcharge = surcharge_options[preferred_base]
+        preferred_base = st.selectbox(
+            "Preferred Shopper Base",
+            surcharge_df["Shopper Base"]
+        )
 
+        selected_surcharge = surcharge_options[preferred_base]
+    else:
+        preferred_base = None
+        selected_surcharge = None
+
+    # === Validation ===
     all_filled = all([
-        name.strip(), requester_contact.strip(), requester_faculty.strip(),
-        requester_year.strip(), location_name.strip(), item.strip(),
-        qty > 0, max_price >= 0, lat is not None, lon is not None
+        name.strip(),
+        requester_contact.strip(),
+        requester_faculty.strip(),
+        requester_year.strip(),
+        location_name.strip(),
+        item.strip(),
+        qty > 0,
+        max_price >= 0,
+        lat is not None,
+        lon is not None,
+        preferred_base is not None
     ])
 
     if not all_filled:
