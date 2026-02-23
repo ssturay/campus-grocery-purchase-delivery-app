@@ -20,17 +20,14 @@ password = "isst@2025"
 def login():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
-
     if not st.session_state.authenticated:
         with st.form("Login"):
             username_input = st.text_input("Username")
             password_input = st.text_input("Password", type="password")
             submitted = st.form_submit_button("Login")
-
             if submitted:
                 correct_user = st.secrets["credentials"]["username"]
                 correct_pass = st.secrets["credentials"]["password"]
-
                 if username_input == correct_user and password_input == correct_pass:
                     st.session_state.authenticated = True
                     st.success("Login successful!")
@@ -39,7 +36,6 @@ def login():
                     st.error("Invalid credentials")
     return st.session_state.authenticated
 
-# === Authenticate before running app ===
 if not login():
     st.stop()
 
@@ -58,7 +54,7 @@ def geocode_location(location_name):
         print(f"Geocoding error: {e}")
     return None, None
 
-# === Google Sheets functions ===
+# === Google Sheets ===
 def get_google_sheet(sheet_name="GroceryApp"):
     scope = [
         "https://spreadsheets.google.com/feeds",
@@ -95,7 +91,7 @@ def save_requests(df):
 if "requests" not in st.session_state:
     st.session_state.requests = load_requests()
 
-# === Language dictionaries ===
+# === Language dict ===
 lang_options = {
     "English": {
         "title": "🛍️🚚 Campus Grocery Purchase & Delivery App (CamPDApp) 🇸🇱",
@@ -128,7 +124,7 @@ lang_options = {
 
 txt = lang_options["English"]
 
-# === Shopper bases ===
+# === Shopper bases & campus coordinates ===
 shopper_bases = {
     "Lumley": (8.4571, -13.2924),
     "Aberdeen": (8.4848, -13.2827),
@@ -146,7 +142,6 @@ shopper_bases = {
     "Wilberforce": (8.4678, -13.255)
 }
 
-# === Campus coordinates lock ===
 campus_coordinates = {
     "FBC": (8.4840, -13.2317),
     "IPAM": (8.4875, -13.2344),
@@ -164,6 +159,8 @@ campus_coordinates = {
     "EBKUST": (8.4700, -13.2600)
 }
 
+campus_list = list(campus_coordinates.keys())
+
 # === Helper functions ===
 def calculate_surcharge(distance_km):
     base_fee = 1
@@ -172,21 +169,16 @@ def calculate_surcharge(distance_km):
     return int(math.ceil(surcharge / 100.0) * 100)
 
 def generate_tracking_id():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-
-# === Campus list ===
-campus_list = list(campus_coordinates.keys())
+    return ''.join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=8))
 
 # === Page config ===
 st.set_page_config(page_title=txt["title"])
 st.title(txt["title"])
-
 user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]])
 
 # === Requester Flow ===
 if user_type == txt["requester"]:
     st.subheader("📝 " + txt["submit"])
-
     name = st.text_input(txt["name"])
     requester_contact = st.text_input("📞 Your Contact Number")
     requester_faculty = st.text_input("Department/Faculty")
@@ -197,36 +189,24 @@ if user_type == txt["requester"]:
     max_price = st.number_input("Max Price (SLL)", min_value=0, value=20000)
     delivery_time = st.time_input("Expected Delivery Time")
 
-    # --- Force campus coordinates ---
+    # Force campus coordinates
     lat, lon = campus_coordinates.get(requester_campus, (None, None))
     if lat and lon:
         m = folium.Map(location=[lat, lon], zoom_start=15)
         folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
         st_folium(m, width=700, height=450)
-    else:
-        st.warning("⚠️ Campus coordinates not found.")
 
-    # --- Surcharge calculation ---
-    surcharge_options = {}
-    for base_name, (base_lat, base_lon) in shopper_bases.items():
-        dist = geodesic((lat, lon), (base_lat, base_lon)).km
-        surcharge_options[base_name] = calculate_surcharge(dist)
-
-    surcharge_df = pd.DataFrame([
-        {"Shopper Base": k, "Estimated Surcharge (SLL)": v}
-        for k, v in sorted(surcharge_options.items(), key=lambda x: x[1])
-    ])
-    st.markdown("### Estimated Surcharges")
+    # Surcharge calculation
+    surcharge_options = {b: calculate_surcharge(geodesic((lat, lon), loc).km)
+                        for b, loc in shopper_bases.items()}
+    surcharge_df = pd.DataFrame([{"Shopper Base": k, "Estimated Surcharge (SLL)": v}
+                                for k, v in sorted(surcharge_options.items(), key=lambda x:x[1])])
     st.dataframe(surcharge_df)
-
     preferred_base = st.selectbox("Preferred Shopper Base", surcharge_df["Shopper Base"])
     selected_surcharge = surcharge_options[preferred_base]
 
-    all_filled = all([
-        name.strip(), requester_contact.strip(), requester_faculty.strip(),
-        requester_year.strip(), item.strip(), qty > 0, max_price >= 0
-    ])
-
+    all_filled = all([name.strip(), requester_contact.strip(), requester_faculty.strip(),
+                     requester_year.strip(), item.strip(), qty>0, max_price>=0])
     if all_filled and st.button(txt["submit"]):
         tracking_id = generate_tracking_id()
         new_row = {
@@ -251,12 +231,28 @@ if user_type == txt["requester"]:
             "Status": txt["status_pending"],
             "Rating": None
         }
-        st.session_state.requests = pd.concat(
-            [st.session_state.requests, pd.DataFrame([new_row])],
-            ignore_index=True
-        )
+        st.session_state.requests = pd.concat([st.session_state.requests, pd.DataFrame([new_row])],
+                                             ignore_index=True)
         save_requests(st.session_state.requests)
         st.success(f"{txt['request_submitted']} Tracking ID: {tracking_id}")
+
+    # --- Rate Delivered Requests ---
+    delivered_requests = st.session_state.requests[
+        (st.session_state.requests["Requester"] == name) &
+        (st.session_state.requests["Status"] == txt["status_delivered"]) &
+        (st.session_state.requests["Rating"].isna())
+    ]
+    if not delivered_requests.empty:
+        st.subheader("⭐ Rate Delivered Requests")
+        rate_id = st.selectbox("Select Tracking ID", delivered_requests["Tracking ID"])
+        rating = st.slider("Rate this delivery", 1, 5, 5)
+        if st.button("Submit Rating"):
+            idx = st.session_state.requests[
+                st.session_state.requests["Tracking ID"] == rate_id
+            ].index[0]
+            st.session_state.requests.at[idx, "Rating"] = rating
+            save_requests(st.session_state.requests)
+            st.success(txt["rating_thanks"])
 
 # === Shopper Flow ===
 if user_type == txt["shopper"]:
@@ -264,7 +260,6 @@ if user_type == txt["shopper"]:
     available_requests = st.session_state.requests[
         st.session_state.requests["Assigned Shopper"] == "Unassigned"
     ]
-
     if available_requests.empty:
         st.info(txt["no_requests"])
     else:
@@ -272,10 +267,8 @@ if user_type == txt["shopper"]:
             "Tracking ID","Requester","Item","Qty","Campus",
             "Expected Delivery Time","Preferred Shopper Base","Surcharge (SLL)"
         ]])
-
         tracking_ids = available_requests["Tracking ID"].tolist()
         selected_id = st.selectbox(txt["index_prompt"], tracking_ids)
-
         shopper_name = st.text_input("Your Name", "")
         shopper_contact = st.text_input("Your Contact Number", "")
 
@@ -283,23 +276,34 @@ if user_type == txt["shopper"]:
             idx = st.session_state.requests[
                 st.session_state.requests["Tracking ID"] == selected_id
             ].index
-            if len(idx) == 0:
+            if len(idx)==0 or shopper_name.strip()=="" or shopper_contact.strip()=="":
                 st.error(txt["assigned_error"])
-            elif shopper_name.strip() == "" or shopper_contact.strip() == "":
-                st.warning("Please fill your name and contact to accept request.")
             else:
                 idx = idx[0]
                 st.session_state.requests.at[idx, "Assigned Shopper"] = "Assigned"
                 st.session_state.requests.at[idx, "Shopper Name"] = shopper_name
                 st.session_state.requests.at[idx, "Shopper Contact"] = shopper_contact
                 st.session_state.requests.at[idx, "Status"] = txt["status_assigned"]
-
                 # Show map
                 coords = st.session_state.requests.at[idx, "Requester Coordinates"].split(",")
                 req_lat, req_lon = float(coords[0]), float(coords[1])
                 m = folium.Map(location=[req_lat, req_lon], zoom_start=15)
                 folium.Marker([req_lat, req_lon], tooltip="Requester Location").add_to(m)
                 st_folium(m, width=700, height=450)
-
                 save_requests(st.session_state.requests)
                 st.success(f"{txt['assigned_success']} {selected_id}")
+
+        # Update status (Delivered/Cancelled)
+        assigned_requests = st.session_state.requests[
+            (st.session_state.requests["Shopper Name"] == shopper_name) &
+            (st.session_state.requests["Assigned Shopper"] == "Assigned")
+        ]
+        if not assigned_requests.empty:
+            st.subheader("Update Delivery Status")
+            status_id = st.selectbox("Select Tracking ID", assigned_requests["Tracking ID"])
+            new_status = st.selectbox("New Status", [txt["status_delivered"], txt["status_cancelled"]])
+            if st.button("Update Status"):
+                idx = st.session_state.requests[st.session_state.requests["Tracking ID"]==status_id].index[0]
+                st.session_state.requests.at[idx, "Status"] = new_status
+                save_requests(st.session_state.requests)
+                st.success(f"Status updated to {new_status}")
