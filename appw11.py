@@ -190,23 +190,13 @@ def calculate_surcharge(distance_km):
     surcharge = base_fee + (per_km_fee * distance_km)
     return int(math.ceil(surcharge / 100.0) * 100)
 
-# === Campus Coordinates Fix ===
-campus_coordinates = {
-    "FBC": (8.4840, -13.2317),
-    "IPAM": (8.4875, -13.2344),
-    "COMAHS": (8.4655, -13.2689),
-    "Njala FT": (8.3780, -13.1665),
-    "MMTU": (8.4806, -13.2586),
-    "Limkokwing": (8.3942, -13.1510),
-    "UNIMTECH": (8.4683, -13.2517),
-    "IAMTECH": (8.4752, -13.2498),
-    "FTC": (8.4870, -13.2350),
-    "LICCSAL": (8.4824, -13.2331),
-    "IMAT": (8.4872, -13.2340),
-    "Bluecrest": (8.4890, -13.2320),
-    "UNIMAK": (8.4660, -13.2675),
-    "EBKUST": (8.4700, -13.2600)
-}
+user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]])
+# === Campus list ===
+campus_list = [
+    "FBC", "IPAM", "COMAHS", "Njala FT", "MMTU", "Limkokwing",
+    "UNIMTECH", "IAMTECH", "FTC", "LICCSAL", "IMAT",
+    "Bluecrest", "UNIMAK", "EBKUST", "Others"
+]
 
 # === Page config and title ===
 st.set_page_config(page_title=txt["title"])
