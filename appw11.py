@@ -178,8 +178,8 @@ shopper_bases = {
 
 # === Helper function to calculate surcharge ===
 def calculate_surcharge(distance_km):
-    base_fee = 1000
-    per_km_fee = 500
+    base_fee = 1
+    per_km_fee = 2
     surcharge = base_fee + (per_km_fee * distance_km)
     return int(math.ceil(surcharge / 100.0) * 100)  # round up to nearest 100
 
