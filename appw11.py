@@ -10,7 +10,7 @@ import folium
 from streamlit_folium import st_folium
 import uuid
 
-# === Login System ===
+# === LOGIN SYSTEM ===
 def login():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
@@ -36,7 +36,7 @@ def login():
 if not login():
     st.stop()
 
-# === OpenCage API ===
+# === OPENCAGE API ===
 OPENCAGE_API_KEY = st.secrets["OPENCAGE_API_KEY"]
 geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
 
@@ -51,7 +51,7 @@ def geocode_location(location_name):
         print(f"Geocoding error: {e}")
     return None, None
 
-# === Google Sheets ===
+# === GOOGLE SHEETS ===
 def get_google_sheet(sheet_name="GroceryApp"):
     try:
         creds_dict = st.secrets["google_credentials"]
@@ -89,11 +89,11 @@ def save_requests(df):
         st.error(f"⚠️ Failed to save request: {e}")
         return False
 
-# === Session Init ===
+# === SESSION INIT ===
 if "requests" not in st.session_state:
     st.session_state.requests = load_requests()
 
-# === Language Dictionaries ===
+# === LANGUAGE OPTIONS ===
 lang_options = {
     "English": {
         "title": "🛍️🚚 Campus Grocery Purchase & Delivery App (CamPDApp) 🇸🇱",
@@ -146,7 +146,7 @@ lang_options = {
 selected_language = st.sidebar.selectbox("Language", ["English", "Krio"])
 txt = lang_options[selected_language]
 
-# === Shopper Bases ===
+# === SHOPPER BASES & CAMPUS COORDINATES ===
 shopper_bases = {
     "Lumley": (8.4571, -13.2924),
     "Aberdeen": (8.4848, -13.2827),
@@ -164,7 +164,6 @@ shopper_bases = {
     "Wilberforce": (8.4678, -13.255)
 }
 
-# === Campus List & Coordinates ===
 campus_list = ["FBC", "IPAM", "COMAHS", "Njala FT", "MMTU", "Limkokwing",
                "UNIMTECH", "IAMTECH", "FTC", "LICCSAL", "IMAT", "Bluecrest",
                "UNIMAK", "EBKUST", "Others"]
@@ -186,7 +185,7 @@ campus_coordinates = {
     "EBKUST": (8.4700, -13.2600)
 }
 
-# === Helper Functions ===
+# === HELPERS ===
 def calculate_surcharge(distance_km):
     base_fee = 1000
     per_km_fee = 500
@@ -195,7 +194,7 @@ def calculate_surcharge(distance_km):
 def generate_tracking_id():
     return str(uuid.uuid4())[:8]
 
-# === Page Setup ===
+# === PAGE SETUP ===
 st.set_page_config(page_title=txt["title"])
 st.title(txt["title"])
 user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]])
