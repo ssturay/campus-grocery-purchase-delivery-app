@@ -55,18 +55,25 @@ def geocode_location(location_name):
         pass
     return None, None
 
-# === Google Sheets functions ===
+import json
+
 def get_google_sheet(sheet_name="GroceryApp"):
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    import json
-    creds_dict = st.secrets["google_credentials"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open(sheet_name).sheet1
-    return sheet
+    try:
+        scope = [
+            "https://spreadsheets.google.com/feeds",
+            "https://www.googleapis.com/auth/drive"
+        ]
+
+        creds_json = json.loads(st.secrets["GOOGLE_CREDENTIALS_JSON"])
+
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
+        client = gspread.authorize(creds)
+
+        return client.open(sheet_name).sheet1
+
+    except Exception as e:
+        st.error("⚠️ Google Sheets authentication failed.")
+        st.stop()
 
 def load_requests():
     sheet = get_google_sheet()
