@@ -243,3 +243,74 @@ if user_type == txt["requester"]:
 
             save_requests(st.session_state.requests)
             st.success(f"{txt['request_submitted']} Tracking ID: {tracking_id}")
+
+
+# ====================
+# Shopper Flow
+# ====================
+if user_type != txt["requester"]:
+    st.subheader("🛒 Available Requests to Deliver")
+
+    # Input Shopper info
+    shopper_name = st.text_input("Your Name")
+    shopper_contact = st.text_input("📞 Contact Number")
+    shopper_faculty = st.text_input("Department/Faculty")
+    shopper_year = st.text_input("Year/Level")
+    current_location = st.text_input("📍 Your Current Area / Campus")
+
+    # Geocode shopper location
+    shop_lat, shop_lon = geocode_location(current_location)
+    if shop_lat and shop_lon:
+        st.map(pd.DataFrame([[shop_lat, shop_lon]], columns=['lat', 'lon']))
+
+    # Filter pending requests
+    pending_requests = st.session_state.requests[
+        st.session_state.requests['Status'] == 'Pending'
+    ].reset_index(drop=True)
+
+    if pending_requests.empty:
+        st.info("No requests available at the moment.")
+    else:
+        st.dataframe(pending_requests[[
+            'Tracking ID', 'Requester', 'Item', 'Qty', 'Max Price (SLL)',
+            'Preferred Shopper Base', 'Surcharge (SLL)', 'Campus'
+        ]])
+
+        # Shopper selects a request by tracking ID
+        selected_tracking_id = st.selectbox(
+            "Select Tracking ID to accept",
+            pending_requests['Tracking ID']
+        )
+
+        # Show map for selected request
+        selected_request = pending_requests[pending_requests['Tracking ID'] == selected_tracking_id].iloc[0]
+        req_coords = selected_request['Requester Coordinates'].split(',')
+        req_lat, req_lon = float(req_coords[0]), float(req_coords[1])
+
+        if req_lat and req_lon:
+            map_req = folium.Map(location=[req_lat, req_lon], zoom_start=15)
+            folium.Marker([req_lat, req_lon],
+                          tooltip=f"Requester: {selected_request['Requester']}").add_to(map_req)
+            if shop_lat and shop_lon:
+                folium.Marker([shop_lat, shop_lon],
+                              tooltip=f"Your Location: {shopper_name}",
+                              icon=folium.Icon(color='green')).add_to(map_req)
+            st_folium(map_req, width=700, height=450)
+
+        # Accept the request
+        if st.button("📦 Accept Request"):
+            idx = st.session_state.requests[
+                st.session_state.requests['Tracking ID'] == selected_tracking_id
+            ].index[0]
+
+            st.session_state.requests.at[idx, 'Assigned Shopper'] = shopper_name
+            st.session_state.requests.at[idx, 'Shopper Name'] = shopper_name
+            st.session_state.requests.at[idx, 'Shopper Contact'] = shopper_contact
+            st.session_state.requests.at[idx, 'Shopper Faculty/Department'] = shopper_faculty
+            st.session_state.requests.at[idx, 'Shopper Year/Level'] = shopper_year
+            st.session_state.requests.at[idx, 'Shopper Location'] = current_location
+            st.session_state.requests.at[idx, 'Shopper Coordinates'] = f"{shop_lat},{shop_lon}"
+            st.session_state.requests.at[idx, 'Status'] = 'Assigned'
+
+            save_requests(st.session_state.requests)
+            st.success(f"Request {selected_tracking_id} has been assigned to you!")
