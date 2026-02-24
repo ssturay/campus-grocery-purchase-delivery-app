@@ -6,8 +6,8 @@ from geopy.distance import geodesic
 import folium
 from streamlit_folium import st_folium
 import uuid
-from google.oauth2.service_account import Credentials
 import gspread
+from google.oauth2.service_account import Credentials
 
 # =========================
 # 🌐 LANGUAGE OPTIONS
@@ -97,7 +97,6 @@ def login():
                 st.success("Login successful!")
             else:
                 st.error("Invalid credentials")
-
     if not st.session_state.authenticated:
         st.stop()
     return True
@@ -147,15 +146,15 @@ def calculate_surcharge(distance_km):
     return int(math.ceil((base_fee + per_km_fee * distance_km) / 100.0) * 100)
 
 # =========================
-# 🔐 GOOGLE SHEETS
+# 🔑 GOOGLE SHEETS
 # =========================
-SCOPE = ["https://www.googleapis.com/auth/spreadsheets",
-         "https://www.googleapis.com/auth/drive"]
+SCOPE = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 
 @st.cache_resource
 def connect_to_gsheet():
     try:
         creds_dict = dict(st.secrets["google"])
+        # Replace \n with actual newlines
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
     except KeyError:
         st.error("❌ Google credentials missing in secrets!")
@@ -168,14 +167,13 @@ sheet = connect_to_gsheet()
 
 @st.cache_data(ttl=10)
 def load_data():
-    data = sheet.get_all_records()
-    return pd.DataFrame(data)
+    return pd.DataFrame(sheet.get_all_records())
 
 def save_to_gsheet(row_dict):
     sheet.append_row(list(row_dict.values()))
 
 # =========================
-# 🧑‍🎓 USER TYPE
+# USER TYPE
 # =========================
 user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]])
 
@@ -197,12 +195,12 @@ if user_type == txt["requester"]:
 
     lat, lon = campus_coordinates[campus]
 
-    # 🗺️ Map showing requester location
+    # Map showing requester location
     m = folium.Map(location=[lat, lon], zoom_start=16)
     folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
     st_folium(m, width=700, height=450)
 
-    # 💰 Surcharge calculation
+    # Surcharge calculation
     surcharge_options = {}
     for base, coords in shopper_bases.items():
         dist = geodesic((lat, lon), coords).km
