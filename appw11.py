@@ -150,13 +150,16 @@ def calculate_surcharge(distance_km):
 # =========================
 # 🔑 GOOGLE SHEETS
 # =========================
+from google.oauth2.service_account import Credentials
+import gspread
+
 SCOPE = ["https://www.googleapis.com/auth/spreadsheets",
          "https://www.googleapis.com/auth/drive"]
 
 @st.cache_resource
 def connect_to_gsheet():
     try:
-        creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS_JSON"])
+        creds_dict = dict(st.secrets["google"])  # read directly from the [google] section
     except KeyError:
         st.error("❌ Google credentials missing in secrets!")
         st.stop()
