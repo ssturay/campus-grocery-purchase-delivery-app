@@ -19,48 +19,26 @@ lang_options = {
         "user_role": "You are a:",
         "requester": "Requester (On Campus)",
         "shopper": "Shopper (Downtown)",
-        "name": "Your Name",
-        "contact": "📞 Your Contact Number",
-        "faculty": "Department/Faculty",
-        "year": "Year/Level",
-        "campus": "🏫 Select your Campus",
         "submit": "✅ Submit Request",
-        "success": "Your request has been submitted!",
-        "available": "🛒 Available Requests to Deliver",
-        "accept": "📦 Accept This Request",
+        "available": "🛒 Available Requests",
+        "accept": "📦 Accept Request",
+        "success": "Request submitted!",
         "no_requests": "No requests available.",
         "invalid": "Invalid Tracking ID",
-        "assigned": "You've been assigned to deliver request #",
-        "item": "Item",
-        "qty": "Quantity",
-        "price": "Max Price (SLL)",
-        "time": "Expected Delivery Time",
-        "preferred_base": "Preferred Shopper Base",
-        "surcharge_table": "Estimated Surcharges"
+        "assigned": "Request accepted: "
     },
     "Krio": {
-        "title": "🛍️🚚 Kampos Gɔsri Buy an Delivri Ap (CamPDApp) 🇸🇱",
+        "title": "🛍️🚚 Kampos Gɔsri Buy an Delivri Ap 🇸🇱",
         "user_role": "U na:",
-        "requester": "Pipul woi wan buy (Kampos)",
-        "shopper": "Shopa (Donton)",
-        "name": "U Name",
-        "contact": "📞 U Kontak",
-        "faculty": "Fakulti/Dept",
-        "year": "Yia/Lɛvɛl",
-        "campus": "🏫 Selekt u Kampos",
+        "requester": "Pipul woi wan buy",
+        "shopper": "Shopa",
         "submit": "✅ Sen Request",
-        "success": "Don sen u request!",
-        "available": "🛒 Request woi de fɔ delivri",
+        "available": "🛒 Request woi de",
         "accept": "📦 Accept dis request",
+        "success": "Don sen request!",
         "no_requests": "No request rynna.",
         "invalid": "Tracking ID no correct",
-        "assigned": "U don accept request #",
-        "item": "Item",
-        "qty": "Kwantity",
-        "price": "Max Price (SLL)",
-        "time": "Tɛm fɔ delivri",
-        "preferred_base": "Shoppa base woi u want",
-        "surcharge_table": "Estimated Sɔchaj"
+        "assigned": "U don accept: "
     }
 }
 
@@ -80,24 +58,20 @@ def connect_to_gsheet():
     creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS_JSON"])
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPE)
     client = gspread.authorize(creds)
-    sheet = client.open("GroceryApp").sheet1
-    return sheet
+    return client.open("GroceryApp").sheet1
 
 sheet = connect_to_gsheet()
 
 @st.cache_data(ttl=10)
 def load_data():
-    try:
-        data = sheet.get_all_records()
-        return pd.DataFrame(data)
-    except:
-        return pd.DataFrame()
+    data = sheet.get_all_records()
+    return pd.DataFrame(data)
 
 def save_to_gsheet(row_dict):
     sheet.append_row(list(row_dict.values()))
 
 # =========================
-# 🔑 LOGIN SYSTEM
+# 🔑 LOGIN
 # =========================
 def login():
     if "authenticated" not in st.session_state:
@@ -107,17 +81,15 @@ def login():
         return True
 
     with st.form("Login"):
-        username_input = st.text_input("Username")
-        password_input = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Login")
-
-        if submitted:
+        user = st.text_input("Username")
+        pw = st.text_input("Password", type="password")
+        if st.form_submit_button("Login"):
             if (
-                username_input == st.secrets["credentials"]["username"]
-                and password_input == st.secrets["credentials"]["password"]
+                user == st.secrets["credentials"]["username"]
+                and pw == st.secrets["credentials"]["password"]
             ):
                 st.session_state.authenticated = True
-                st.success("Login successful!")
+                st.success("Login successful")
             else:
                 st.error("Invalid credentials")
 
@@ -126,9 +98,6 @@ def login():
 
 login()
 
-# =========================
-# 🌍 PAGE CONFIG
-# =========================
 st.set_page_config(page_title=txt["title"])
 st.title(txt["title"])
 
@@ -155,29 +124,23 @@ def calculate_surcharge(distance_km):
     per_km_fee = 500
     return int(math.ceil((base_fee + per_km_fee * distance_km) / 100.0) * 100)
 
-if "requests" not in st.session_state:
-    st.session_state.requests = load_data()
-
-# =========================
-# 👤 USER TYPE
-# =========================
 user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]])
 
 # =====================================================
-# 🧑‍🎓 REQUESTER FLOW
+# 🧑‍🎓 REQUESTER
 # =====================================================
 if user_type == txt["requester"]:
 
-    name = st.text_input(txt["name"])
-    contact = st.text_input(txt["contact"])
-    faculty = st.text_input(txt["faculty"])
-    year = st.text_input(txt["year"])
-    campus = st.selectbox(txt["campus"], list(campus_coordinates.keys()))
+    name = st.text_input("Requester")
+    faculty = st.text_input("Requester Faculty/Department")
+    year = st.text_input("Requester Year/Level")
+    contact = st.text_input("Requester Contact")
+    campus = st.selectbox("Campus", list(campus_coordinates.keys()))
 
-    item = st.text_input(txt["item"])
-    qty = st.number_input(txt["qty"], min_value=1, value=1)
-    max_price = st.number_input(txt["price"], min_value=0, value=20000)
-    delivery_time = st.time_input(txt["time"])
+    item = st.text_input("Item")
+    qty = st.number_input("Qty", min_value=1, value=1)
+    max_price = st.number_input("Max Price (SLL)", min_value=0, value=20000)
+    delivery_time = st.time_input("Expected Delivery Time")
 
     lat, lon = campus_coordinates[campus]
 
@@ -188,60 +151,59 @@ if user_type == txt["requester"]:
 
     # 💰 SURCHARGE TABLE
     surcharge_options = {}
-    for base_name, (b_lat, b_lon) in shopper_bases.items():
-        dist = geodesic((lat, lon), (b_lat, b_lon)).km
-        surcharge_options[base_name] = calculate_surcharge(dist)
+    for base, coords in shopper_bases.items():
+        dist = geodesic((lat, lon), coords).km
+        surcharge_options[base] = calculate_surcharge(dist)
 
     surcharge_df = pd.DataFrame(
-        [{"Shopper Base": k, "Estimated Surcharge (SLL)": v}
+        [{"Preferred Shopper Base": k, "Surcharge (SLL)": v}
          for k, v in sorted(surcharge_options.items(), key=lambda x: x[1])]
     )
 
-    st.markdown(f"### {txt['surcharge_table']}")
     st.dataframe(surcharge_df)
 
-    preferred_base = st.selectbox(txt["preferred_base"], surcharge_df["Shopper Base"])
+    preferred_base = st.selectbox("Preferred Shopper Base", surcharge_df["Preferred Shopper Base"])
     selected_surcharge = surcharge_options[preferred_base]
 
     if st.button(txt["submit"]):
 
         tracking_id = str(uuid.uuid4())[:8]
 
-        new_row = {
-            "Tracking ID": tracking_id,
+        row = {
             "Requester": name,
-            "Faculty": faculty,
-            "Year": year,
-            "Contact": contact,
+            "Requester Faculty/Department": faculty,
+            "Requester Year/Level": year,
+            "Requester Contact": contact,
+            "Requester Location": campus,
+            "Requester Coordinates": f"{lat},{lon}",
             "Campus": campus,
-            "Coordinates": f"{lat},{lon}",
             "Item": item,
             "Qty": qty,
-            "Max Price": max_price,
-            "Delivery Time": delivery_time.strftime("%H:%M"),
-            "Preferred Base": preferred_base,
-            "Surcharge": selected_surcharge,
+            "Max Price (SLL)": max_price,
+            "Expected Delivery Time": delivery_time.strftime("%H:%M"),
+            "Preferred Shopper Base": preferred_base,
+            "Surcharge (SLL)": selected_surcharge,
             "Assigned Shopper": "Unassigned",
+            "Shopper Name": "",
+            "Shopper Faculty/Department": "",
+            "Shopper Year/Level": "",
+            "Shopper Contact": "",
+            "Shopper Location": "",
+            "Shopper Coordinates": "",
+            "Timestamp": datetime.utcnow().isoformat(),
             "Status": "Pending",
-            "Timestamp": datetime.utcnow().isoformat()
+            "Rating": ""
         }
 
-        save_to_gsheet(new_row)
-
-        st.session_state.requests = pd.concat(
-            [st.session_state.requests, pd.DataFrame([new_row])],
-            ignore_index=True
-        )
-
-        st.success(f"{txt['success']} Tracking ID: {tracking_id}")
+        save_to_gsheet(row)
+        st.success(f"{txt['success']} ID: {tracking_id}")
 
 # =====================================================
-# 🛵 SHOPPER FLOW
+# 🛵 SHOPPER
 # =====================================================
 else:
 
     df = load_data()
-
     available_df = df[df["Assigned Shopper"] == "Unassigned"]
 
     st.subheader(txt["available"])
@@ -249,21 +211,19 @@ else:
     if available_df.empty:
         st.info(txt["no_requests"])
     else:
-        st.dataframe(available_df[[
-            "Tracking ID", "Requester", "Item", "Qty", "Campus", "Preferred Base", "Surcharge", "Status"
-        ]])
+        st.dataframe(available_df)
 
-        track_id_input = st.text_input("Tracking ID")
+        track_id = st.text_input("Enter Requester Name to Accept")
 
         if st.button(txt["accept"]):
 
-            if track_id_input in available_df["Tracking ID"].values:
+            if track_id in df["Requester"].values:
 
-                cell = sheet.find(track_id_input)
+                cell = sheet.find(track_id)
 
                 sheet.update_cell(cell.row, df.columns.get_loc("Assigned Shopper") + 1, "Accepted")
                 sheet.update_cell(cell.row, df.columns.get_loc("Status") + 1, "Assigned")
 
-                st.success(f"{txt['assigned']}{track_id_input}")
+                st.success(txt["assigned"] + track_id)
             else:
                 st.error(txt["invalid"])
