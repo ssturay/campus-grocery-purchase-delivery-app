@@ -25,7 +25,8 @@ lang_options = {
         "success": "Request submitted!",
         "no_requests": "No requests available.",
         "invalid": "Invalid Tracking ID",
-        "assigned": "Request accepted: "
+        "assigned": "Request accepted: ",
+        "campus_select": "🏫 Select your Campus:"
     },
     "Krio": {
         "title": "🛍️🚚 Kampos Gɔsri Buy an Delivri Ap 🇸🇱",
@@ -38,7 +39,8 @@ lang_options = {
         "success": "Don sen request!",
         "no_requests": "No request rynna.",
         "invalid": "Tracking ID no correct",
-        "assigned": "U don accept: "
+        "assigned": "U don accept: ",
+        "campus_select": "🏫 Selekt u Kampos:"
     }
 }
 
@@ -46,7 +48,7 @@ selected_language = st.sidebar.selectbox("Language", ["English", "Krio"])
 txt = lang_options[selected_language]
 
 # =========================
-# 🔐 GOOGLE SHEETS
+# 🔐 GOOGLE SHEETS SETUP
 # =========================
 SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -58,7 +60,6 @@ def connect_to_gsheet():
     if "GOOGLE_CREDENTIALS_JSON" not in st.secrets:
         st.error("❌ Google credentials missing in secrets.")
         st.stop()
-
     creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS_JSON"])
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPE)
     client = gspread.authorize(creds)
@@ -66,16 +67,14 @@ def connect_to_gsheet():
 
 sheet = connect_to_gsheet()
 
-HEADERS = sheet.row_values(1)
-
-def save_to_gsheet(row_dict):
-    row = [row_dict.get(col, "") for col in HEADERS]
-    sheet.append_row(row)
-
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=10)
 def load_data():
     data = sheet.get_all_records()
     return pd.DataFrame(data)
+
+def save_to_gsheet(row_dict):
+    """Append a row to Google Sheet"""
+    sheet.append_row(list(row_dict.values()))
 
 # =========================
 # 🔑 LOGIN
@@ -138,11 +137,11 @@ user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]
 # =====================================================
 if user_type == txt["requester"]:
 
-    name = st.text_input("Requester")
-    faculty = st.text_input("Requester Faculty/Department")
-    year = st.text_input("Requester Year/Level")
-    contact = st.text_input("Requester Contact")
-    campus = st.selectbox("Campus", list(campus_coordinates.keys()))
+    name = st.text_input(txt["requester"])
+    faculty = st.text_input("Faculty/Department")
+    year = st.text_input("Year/Level")
+    contact = st.text_input("Contact")
+    campus = st.selectbox(txt["campus_select"], list(campus_coordinates.keys()))
 
     item = st.text_input("Item")
     qty = st.number_input("Qty", min_value=1, value=1)
@@ -151,10 +150,12 @@ if user_type == txt["requester"]:
 
     lat, lon = campus_coordinates[campus]
 
+    # 🗺️ MAP
     m = folium.Map(location=[lat, lon], zoom_start=16)
     folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
     st_folium(m, width=700, height=450)
 
+    # 💰 SURCHARGE TABLE
     surcharge_options = {}
     for base, coords in shopper_bases.items():
         dist = geodesic((lat, lon), coords).km
@@ -217,9 +218,7 @@ else:
     if available_df.empty:
         st.info(txt["no_requests"])
     else:
-        st.dataframe(available_df[[
-            "Tracking ID", "Requester", "Item", "Campus", "Surcharge (SLL)"
-        ]])
+        st.dataframe(available_df)
 
         track_id = st.text_input("Enter Tracking ID to Accept")
 
@@ -228,9 +227,8 @@ else:
             if track_id in df["Tracking ID"].values:
 
                 cell = sheet.find(track_id)
-
-                sheet.update_cell(cell.row, HEADERS.index("Assigned Shopper") + 1, "Accepted")
-                sheet.update_cell(cell.row, HEADERS.index("Status") + 1, "Assigned")
+                sheet.update_cell(cell.row, df.columns.get_loc("Assigned Shopper") + 1, "Accepted")
+                sheet.update_cell(cell.row, df.columns.get_loc("Status") + 1, "Assigned")
 
                 st.success(txt["assigned"] + track_id)
             else:
