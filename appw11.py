@@ -129,7 +129,14 @@ def admin_login():
 
     if not st.session_state.admin_authenticated:
         st.stop()
-
+# =========================
+# APP TITLE
+# =========================
+st.title(
+    "🛍️🚚 Campus Grocery Purchase & Delivery App (CamPDApp) 🇸🇱"
+    if language == "English"
+    else "🛍️🚚 Kampus Makit Bay & Dilivri Ap (CamPDApp) 🇸🇱"
+)
 # =========================
 # ROLE SELECTOR
 # =========================
