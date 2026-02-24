@@ -18,4 +18,4 @@ client_id = "114261537315232932947"                                # Replace wit
 auth_uri = "https://accounts.google.com/o/oauth2/auth"
 token_uri = "https://oauth2.googleapis.com/token"
 auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
-client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/xxxx"  # Replace accordingly
+client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/campusgroceryapp@groc-purchase-and-deliveryapp.iam.gserviceaccount.com"  # Replace accordingly
