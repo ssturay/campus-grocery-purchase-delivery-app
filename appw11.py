@@ -77,7 +77,7 @@ st.set_page_config(page_title=txt["title"])
 st.title(txt["title"])
 
 # =========================
-# 🔑 LOGIN
+# 🔐 LOGIN
 # =========================
 def login():
     if "authenticated" not in st.session_state:
@@ -148,7 +148,7 @@ def calculate_surcharge(distance_km):
     return int(math.ceil((base_fee + per_km_fee * distance_km) / 100.0) * 100)
 
 # =========================
-# 🔐 GOOGLE SHEETS
+# 🔑 GOOGLE SHEETS
 # =========================
 SCOPE = ["https://www.googleapis.com/auth/spreadsheets",
          "https://www.googleapis.com/auth/drive"]
