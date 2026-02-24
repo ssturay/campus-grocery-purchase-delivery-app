@@ -6,7 +6,6 @@ from geopy.distance import geodesic
 import folium
 from streamlit_folium import st_folium
 import uuid
-import json
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -148,18 +147,15 @@ def calculate_surcharge(distance_km):
     return int(math.ceil((base_fee + per_km_fee * distance_km) / 100.0) * 100)
 
 # =========================
-# 🔑 GOOGLE SHEETS
+# 🔑 GOOGLE SHEETS SETUP
 # =========================
-from google.oauth2.service_account import Credentials
-import gspread
-
 SCOPE = ["https://www.googleapis.com/auth/spreadsheets",
          "https://www.googleapis.com/auth/drive"]
 
 @st.cache_resource
 def connect_to_gsheet():
     try:
-        creds_dict = dict(st.secrets["google"])  # read directly from the [google] section
+        creds_dict = dict(st.secrets["google"])  # read directly from [google] section
     except KeyError:
         st.error("❌ Google credentials missing in secrets!")
         st.stop()
@@ -186,7 +182,6 @@ user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]
 # REQUESTER FLOW
 # =========================
 if user_type == txt["requester"]:
-
     st.subheader(txt["submit"])
     name = st.text_input(txt["name"])
     contact = st.text_input(txt["contact"])
