@@ -76,7 +76,7 @@ st.set_page_config(page_title=txt["title"])
 st.title(txt["title"])
 
 # =========================
-# 🔐 LOGIN SYSTEM
+# 🔐 LOGIN
 # =========================
 def login():
     if "authenticated" not in st.session_state:
@@ -147,7 +147,7 @@ def calculate_surcharge(distance_km):
     return int(math.ceil((base_fee + per_km_fee * distance_km) / 100.0) * 100)
 
 # =========================
-# 🔑 GOOGLE SHEETS CONNECTION
+# 🔐 GOOGLE SHEETS
 # =========================
 SCOPE = ["https://www.googleapis.com/auth/spreadsheets",
          "https://www.googleapis.com/auth/drive"]
@@ -156,6 +156,7 @@ SCOPE = ["https://www.googleapis.com/auth/spreadsheets",
 def connect_to_gsheet():
     try:
         creds_dict = dict(st.secrets["google"])
+        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
     except KeyError:
         st.error("❌ Google credentials missing in secrets!")
         st.stop()
@@ -167,7 +168,8 @@ sheet = connect_to_gsheet()
 
 @st.cache_data(ttl=10)
 def load_data():
-    return pd.DataFrame(sheet.get_all_records())
+    data = sheet.get_all_records()
+    return pd.DataFrame(data)
 
 def save_to_gsheet(row_dict):
     sheet.append_row(list(row_dict.values()))
@@ -181,6 +183,7 @@ user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]
 # REQUESTER FLOW
 # =========================
 if user_type == txt["requester"]:
+
     st.subheader(txt["submit"])
     name = st.text_input(txt["name"])
     contact = st.text_input(txt["contact"])
@@ -194,19 +197,23 @@ if user_type == txt["requester"]:
 
     lat, lon = campus_coordinates[campus]
 
-    # 🗺️ Map
+    # 🗺️ Map showing requester location
     m = folium.Map(location=[lat, lon], zoom_start=16)
     folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
     st_folium(m, width=700, height=450)
 
-    # 💰 Surcharge
-    surcharge_options = {base: calculate_surcharge(geodesic((lat, lon), coords).km)
-                         for base, coords in shopper_bases.items()}
+    # 💰 Surcharge calculation
+    surcharge_options = {}
+    for base, coords in shopper_bases.items():
+        dist = geodesic((lat, lon), coords).km
+        surcharge_options[base] = calculate_surcharge(dist)
+
     surcharge_df = pd.DataFrame([
         {"Preferred Shopper Base": k, "Surcharge (SLL)": v}
         for k, v in sorted(surcharge_options.items(), key=lambda x: x[1])
     ])
     st.dataframe(surcharge_df)
+
     preferred_base = st.selectbox("Preferred Shopper Base", surcharge_df["Preferred Shopper Base"])
     selected_surcharge = surcharge_options[preferred_base]
 
