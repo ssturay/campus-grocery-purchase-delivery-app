@@ -2,8 +2,7 @@
 username = "your_username"
 password = "your_password"
 
-GOOGLE_CREDENTIALS_JSON = '''
-{
+GOOGLE_CREDENTIALS_JSON = """{
   "type": "service_account",
   "project_id": "your_project_id",
   "private_key_id": "xxxx",
@@ -14,5 +13,4 @@ GOOGLE_CREDENTIALS_JSON = '''
   "token_uri": "https://oauth2.googleapis.com/token",
   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/xxxx"
-}
-'''
+}"""
