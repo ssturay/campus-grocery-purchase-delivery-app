@@ -2,8 +2,8 @@
 # APP LOGIN CREDENTIALS
 # =========================
 [credentials]
-username = "your_username"   # Replace with your app login username
-password = "your_password"   # Replace with your app login password
+username = "adminsst"   # Replace with your app login username
+password = "isst@2025"   # Replace with your app login password
 
 # =========================
 # GOOGLE SERVICE ACCOUNT
