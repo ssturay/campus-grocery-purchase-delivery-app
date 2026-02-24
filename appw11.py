@@ -46,7 +46,7 @@ selected_language = st.sidebar.selectbox("Language", ["English", "Krio"])
 txt = lang_options[selected_language]
 
 # =========================
-# 🔐 GOOGLE SHEETS SETUP
+# 🔐 GOOGLE SHEETS
 # =========================
 SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -55,6 +55,10 @@ SCOPE = [
 
 @st.cache_resource
 def connect_to_gsheet():
+    if "GOOGLE_CREDENTIALS_JSON" not in st.secrets:
+        st.error("❌ Google credentials missing in secrets.")
+        st.stop()
+
     creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS_JSON"])
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPE)
     client = gspread.authorize(creds)
@@ -62,13 +66,16 @@ def connect_to_gsheet():
 
 sheet = connect_to_gsheet()
 
-@st.cache_data(ttl=10)
+HEADERS = sheet.row_values(1)
+
+def save_to_gsheet(row_dict):
+    row = [row_dict.get(col, "") for col in HEADERS]
+    sheet.append_row(row)
+
+@st.cache_data(ttl=5)
 def load_data():
     data = sheet.get_all_records()
     return pd.DataFrame(data)
-
-def save_to_gsheet(row_dict):
-    sheet.append_row(list(row_dict.values()))
 
 # =========================
 # 🔑 LOGIN
@@ -144,12 +151,10 @@ if user_type == txt["requester"]:
 
     lat, lon = campus_coordinates[campus]
 
-    # 🗺️ MAP
     m = folium.Map(location=[lat, lon], zoom_start=16)
     folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
     st_folium(m, width=700, height=450)
 
-    # 💰 SURCHARGE TABLE
     surcharge_options = {}
     for base, coords in shopper_bases.items():
         dist = geodesic((lat, lon), coords).km
@@ -170,6 +175,7 @@ if user_type == txt["requester"]:
         tracking_id = str(uuid.uuid4())[:8]
 
         row = {
+            "Tracking ID": tracking_id,
             "Requester": name,
             "Requester Faculty/Department": faculty,
             "Requester Year/Level": year,
@@ -211,18 +217,20 @@ else:
     if available_df.empty:
         st.info(txt["no_requests"])
     else:
-        st.dataframe(available_df)
+        st.dataframe(available_df[[
+            "Tracking ID", "Requester", "Item", "Campus", "Surcharge (SLL)"
+        ]])
 
-        track_id = st.text_input("Enter Requester Name to Accept")
+        track_id = st.text_input("Enter Tracking ID to Accept")
 
         if st.button(txt["accept"]):
 
-            if track_id in df["Requester"].values:
+            if track_id in df["Tracking ID"].values:
 
                 cell = sheet.find(track_id)
 
-                sheet.update_cell(cell.row, df.columns.get_loc("Assigned Shopper") + 1, "Accepted")
-                sheet.update_cell(cell.row, df.columns.get_loc("Status") + 1, "Assigned")
+                sheet.update_cell(cell.row, HEADERS.index("Assigned Shopper") + 1, "Accepted")
+                sheet.update_cell(cell.row, HEADERS.index("Status") + 1, "Assigned")
 
                 st.success(txt["assigned"] + track_id)
             else:
