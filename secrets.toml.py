@@ -1,6 +1,6 @@
 [credentials]
-username = "your_username"
-password = "your_password"
+username = "adminsst"
+password = "isst@2025"
 
 GOOGLE_CREDENTIALS_JSON = """{
   "type": "service_account",
