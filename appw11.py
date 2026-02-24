@@ -6,9 +6,33 @@ from geopy.distance import geodesic
 import folium
 from streamlit_folium import st_folium
 import uuid
-import json
 import gspread
 from google.oauth2.service_account import Credentials
+
+# =========================
+# 🔑 LOGIN
+# =========================
+def login():
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if st.session_state.authenticated:
+        return True
+
+    with st.form("Login"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        if st.form_submit_button("Login"):
+            if username == st.secrets["credentials"]["username"] and password == st.secrets["credentials"]["password"]:
+                st.session_state.authenticated = True
+                st.success("Login successful!")
+            else:
+                st.error("Invalid credentials")
+
+    if not st.session_state.authenticated:
+        st.stop()
+
+login()
 
 # =========================
 # 🌐 LANGUAGE OPTIONS
@@ -70,43 +94,11 @@ lang_options = {
     }
 }
 
-# =========================
-# LANGUAGE SELECTION
-# =========================
 selected_language = st.sidebar.selectbox("Language", ["English", "Krio"])
 txt = lang_options[selected_language]
 
 st.set_page_config(page_title=txt["title"])
 st.title(txt["title"])
-
-# =========================
-# 🔑 LOGIN
-# =========================
-def login():
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
-
-    if st.session_state.authenticated:
-        return True
-
-    with st.form("Login"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        if st.form_submit_button("Login"):
-            if (
-                username == st.secrets["credentials"]["username"]
-                and password == st.secrets["credentials"]["password"]
-            ):
-                st.session_state.authenticated = True
-                st.success("Login successful!")
-            else:
-                st.error("Invalid credentials")
-
-    if not st.session_state.authenticated:
-        st.stop()
-    return True
-
-login()
 
 # =========================
 # 📍 CAMPUS & SHOPPER DATA
@@ -159,10 +151,12 @@ SCOPE = ["https://www.googleapis.com/auth/spreadsheets",
 @st.cache_resource
 def connect_to_gsheet():
     try:
-        creds_dict = json.loads(st.secrets["google"]["GOOGLE_CREDENTIALS_JSON"])
+        creds_dict = dict(st.secrets["google_credentials"])
+        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
     except KeyError:
         st.error("❌ Google credentials missing in secrets!")
         st.stop()
+
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPE)
     client = gspread.authorize(creds)
     return client.open("GroceryApp").sheet1
@@ -200,12 +194,10 @@ if user_type == txt["requester"]:
 
     lat, lon = campus_coordinates[campus]
 
-    # 🗺️ Map showing requester location
     m = folium.Map(location=[lat, lon], zoom_start=16)
     folium.Marker([lat, lon], tooltip="Requester Location").add_to(m)
     st_folium(m, width=700, height=450)
 
-    # 💰 Surcharge calculation
     surcharge_options = {}
     for base, coords in shopper_bases.items():
         dist = geodesic((lat, lon), coords).km
