@@ -7,8 +7,47 @@ from opencage.geocoder import OpenCageGeocode
 import folium
 from streamlit_folium import st_folium
 import uuid
+import gspread
+from google.oauth2.service_account import Credentials
 
-# === LOGIN SYSTEM ===
+# =========================
+# GOOGLE SHEET SETUP
+# =========================
+SCOPE = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+def connect_to_gsheet():
+    creds_dict = st.secrets["google_credentials"]
+
+    # Fix private key line breaks if stored with \n
+    if "\\n" in creds_dict["private_key"]:
+        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+
+    creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPE)
+    client = gspread.authorize(creds)
+
+    sheet_name = "CampusGroceryRequests"  # Change to your sheet name
+    try:
+        sheet = client.open(sheet_name).sheet1
+    except gspread.SpreadsheetNotFound:
+        sheet = client.create(sheet_name).sheet1
+    return sheet
+
+def save_requests_to_gsheet():
+    sheet = connect_to_gsheet()
+    df = st.session_state.requests
+
+    # Clear existing sheet and write header + rows
+    sheet.clear()
+    sheet.append_row(df.columns.tolist())
+    for row in df.values.tolist():
+        sheet.append_row(row)
+
+# =========================
+# LOGIN SYSTEM
+# =========================
 def login():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
@@ -38,7 +77,9 @@ def login():
 if not login():
     st.stop()
 
-# === LANGUAGE OPTIONS ===
+# =========================
+# LANGUAGE OPTIONS
+# =========================
 lang_options = {
     "English": {
         "title": "🛍️🚚 Campus Grocery Purchase & Delivery App (CamPDApp) 🇸🇱",
@@ -95,11 +136,15 @@ lang_options = {
 selected_language = st.sidebar.selectbox("Language", ["English", "Krio"])
 txt = lang_options[selected_language]
 
-# === PAGE CONFIG ===
+# =========================
+# PAGE CONFIG
+# =========================
 st.set_page_config(page_title=txt["title"])
 st.title(txt["title"])
 
-# === CAMPUS COORDINATES ===
+# =========================
+# CAMPUS COORDINATES
+# =========================
 campus_coordinates = {
     "FBC": (8.4840, -13.2317),
     "IPAM": (8.4875, -13.2344),
@@ -117,10 +162,8 @@ campus_coordinates = {
     "EBKUST": (8.4700, -13.2600)
 }
 
-# === CAMPUS LIST ===
 campus_list = list(campus_coordinates.keys())
 
-# === SHOPPER BASES ===
 shopper_bases = {
     "Lumley": (8.4571, -13.2924),
     "Aberdeen": (8.4848, -13.2827),
@@ -138,14 +181,18 @@ shopper_bases = {
     "Wilberforce": (8.4678, -13.255)
 }
 
-# === HELPER FUNCTIONS ===
+# =========================
+# HELPER FUNCTIONS
+# =========================
 def calculate_surcharge(distance_km):
-    base_fee = 1000  # Example SLL base
-    per_km_fee = 500  # Example SLL per km
+    base_fee = 1000
+    per_km_fee = 500
     surcharge = base_fee + (per_km_fee * distance_km)
     return int(math.ceil(surcharge / 100.0) * 100)
 
-# === SESSION INIT ===
+# =========================
+# SESSION INIT
+# =========================
 if "requests" not in st.session_state:
     st.session_state.requests = pd.DataFrame(columns=[
         "Tracking ID", "Requester", "Requester Faculty/Department", "Requester Year/Level",
@@ -157,13 +204,16 @@ if "requests" not in st.session_state:
         "Timestamp", "Status", "Rating"
     ])
 
-# === USER TYPE ===
+# =========================
+# USER TYPE
+# =========================
 user_type = st.sidebar.radio(txt["user_role"], [txt["requester"], txt["shopper"]])
 
-# === REQUESTER FLOW ===
+# =========================
+# REQUESTER FLOW
+# =========================
 if user_type == txt["requester"]:
     st.subheader("📝 " + txt["submit"])
-
     name = st.text_input(txt["name"])
     requester_contact = st.text_input("📞 Your Contact Number")
     requester_faculty = st.text_input("Department/Faculty")
@@ -175,7 +225,6 @@ if user_type == txt["requester"]:
     max_price = st.number_input("Max Price (SLL)", min_value=0, value=20000)
     delivery_time = st.time_input("Expected Delivery Time")
 
-    # === AUTO PICK CAMPUS COORDINATES ===
     lat, lon = campus_coordinates.get(requester_campus, (None, None))
 
     if lat and lon:
@@ -185,7 +234,6 @@ if user_type == txt["requester"]:
     else:
         st.warning("⚠️ Location not found.")
 
-    # === SURCHARGE CALCULATION ===
     surcharge_options = {}
     for base_name, (base_lat, base_lon) in shopper_bases.items():
         dist = geodesic((lat, lon), (base_lat, base_lon)).km
@@ -195,7 +243,6 @@ if user_type == txt["requester"]:
         {"Shopper Base": k, "Estimated Surcharge (SLL)": v}
         for k, v in sorted(surcharge_options.items(), key=lambda x: x[1])
     ])
-
     st.markdown("### Estimated Surcharges")
     st.dataframe(surcharge_df)
 
@@ -211,7 +258,7 @@ if user_type == txt["requester"]:
         st.info("Please fill in all required fields to submit your request.")
     else:
         if st.button(txt["submit"]):
-            tracking_id = str(uuid.uuid4())[:8]  # Short tracking ID
+            tracking_id = str(uuid.uuid4())[:8]
             new_row = {
                 "Tracking ID": tracking_id,
                 "Requester": name,
@@ -241,7 +288,12 @@ if user_type == txt["requester"]:
             st.session_state.requests = pd.concat([st.session_state.requests, pd.DataFrame([new_row])], ignore_index=True)
             st.success(f"{txt['request_submitted']} Tracking ID: {tracking_id}")
 
-# === SHOPPER FLOW ===
+            # SAVE TO GOOGLE SHEETS
+            save_requests_to_gsheet()
+
+# =========================
+# SHOPPER FLOW
+# =========================
 elif user_type == txt["shopper"]:
     st.subheader(txt["available_requests"])
     df = st.session_state.requests
@@ -256,7 +308,12 @@ elif user_type == txt["shopper"]:
         track_id_input = st.text_input("Enter Tracking ID to accept request")
         if st.button(txt["accept_request"]):
             if track_id_input in available_df["Tracking ID"].values:
-                st.session_state.requests.loc[st.session_state.requests["Tracking ID"] == track_id_input, "Assigned Shopper"] = "Accepted"
+                st.session_state.requests.loc[
+                    st.session_state.requests["Tracking ID"] == track_id_input, "Assigned Shopper"
+                ] = "Accepted"
                 st.success(f"{txt['assigned_success']}{track_id_input}")
+
+                # SAVE TO GOOGLE SHEETS
+                save_requests_to_gsheet()
             else:
                 st.error(txt["assigned_error"])
