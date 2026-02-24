@@ -38,13 +38,11 @@ def connect_to_gsheet():
 
     return sheet
 
-
 def load_requests_from_gsheet():
     sheet = connect_to_gsheet()
     records = sheet.get_all_records()
     if records:
         st.session_state.requests = pd.DataFrame(records)
-
 
 def save_requests_to_gsheet():
     sheet = connect_to_gsheet()
@@ -53,11 +51,12 @@ def save_requests_to_gsheet():
     sheet.update([df.columns.values.tolist()] + df.values.tolist())
 
 # =========================
-# LOGIN
+# LOGIN WITH ROLES
 # =========================
 def login():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
+        st.session_state.user_role = None
 
     if st.session_state.authenticated:
         return True
@@ -66,8 +65,15 @@ def login():
         u = st.text_input("Username")
         p = st.text_input("Password", type="password")
         if st.form_submit_button("Login"):
-            if u == st.secrets["credentials"]["username"] and p == st.secrets["credentials"]["password"]:
+            # Admin login
+            if u == st.secrets["admin"]["username"] and p == st.secrets["admin"]["password"]:
                 st.session_state.authenticated = True
+                st.session_state.user_role = "Admin"
+                st.success("Admin login successful!")
+            # Regular user login
+            elif u == st.secrets["credentials"]["username"] and p == st.secrets["credentials"]["password"]:
+                st.session_state.authenticated = True
+                st.session_state.user_role = "User"
                 st.success("Login successful!")
             else:
                 st.error("Invalid credentials")
@@ -78,7 +84,7 @@ def login():
 login()
 
 # =========================
-# LANGUAGE
+# LANGUAGE OPTIONS
 # =========================
 lang_options = {
     "English": {
@@ -110,7 +116,7 @@ st.set_page_config(page_title=txt["title"])
 st.title(txt["title"])
 
 # =========================
-# CAMPUSES
+# CAMPUSES & SHOPPER BASES
 # =========================
 campus_coordinates = {
     "FBC": (8.4840, -13.2317),
@@ -166,132 +172,38 @@ if "requests" not in st.session_state:
     load_requests_from_gsheet()
 
 # =========================
-# USER ROLE
+# ADMIN DASHBOARD
+# =========================
+if st.session_state.user_role == "Admin":
+    st.subheader("📊 Admin Dashboard - All Requests")
+    df = st.session_state.requests
+
+    st.dataframe(df)
+
+    st.subheader("Filter by Status")
+    status_filter = st.multiselect("Status", df["Status"].unique(), default=df["Status"].unique())
+    filtered_df = df[df["Status"].isin(status_filter)]
+    st.dataframe(filtered_df)
+
+    st.subheader("Map View of Requests")
+    if not filtered_df.empty:
+        avg_lat = filtered_df.apply(lambda row: campus_coordinates.get(row["Campus"], (0,0))[0], axis=1).mean()
+        avg_lon = filtered_df.apply(lambda row: campus_coordinates.get(row["Campus"], (0,0))[1], axis=1).mean()
+        m = folium.Map(location=[avg_lat, avg_lon], zoom_start=13)
+        for _, row in filtered_df.iterrows():
+            campus = row["Campus"]
+            lat, lon = campus_coordinates.get(campus, (0,0))
+            folium.Marker([lat, lon], popup=f"{row['Tracking ID']} - {row['Item']}").add_to(m)
+        st_folium(m, width=700, height=400)
+
+    st.subheader("Export Data")
+    if st.button("Download CSV"):
+        csv_data = filtered_df.to_csv(index=False)
+        st.download_button("Download CSV", csv_data, "all_requests.csv", "text/csv")
+
+    st.stop()  # Stop further app execution for admin
+
+# =========================
+# USER ROLE (Requester / Shopper)
 # =========================
 user_type = st.sidebar.radio("You are a:", ["Requester", "Shopper"])
-
-# =========================
-# REQUESTER FLOW
-# =========================
-if user_type == "Requester":
-    st.subheader(txt["submit"])
-
-    name = st.text_input("Your Name")
-    contact = st.text_input("📞 Contact")
-    campus = st.selectbox("🏫 Campus", list(campus_coordinates.keys()))
-
-    item = st.text_input("Item")
-    qty = st.number_input("Quantity", min_value=1, value=1)
-    max_price = st.number_input("Max Price (SLL)", min_value=0, value=20000)
-    delivery_time = st.time_input("Expected Delivery Time")
-
-    lat, lon = campus_coordinates[campus]
-
-    m = folium.Map(location=[lat, lon], zoom_start=16)
-    folium.Marker([lat, lon]).add_to(m)
-    st_folium(m, width=700, height=400)
-
-    surcharge_options = {}
-    for base_name, (base_lat, base_lon) in shopper_bases.items():
-        dist = geodesic((lat, lon), (base_lat, base_lon)).km
-        surcharge_options[base_name] = calculate_surcharge(dist)
-
-    surcharge_df = pd.DataFrame([
-        {"Shopper Base": k, "Estimated Surcharge (SLL)": v}
-        for k, v in sorted(surcharge_options.items(), key=lambda x: x[1])
-    ])
-    st.dataframe(surcharge_df)
-
-    preferred_base = st.selectbox("Preferred Shopper Base", surcharge_df["Shopper Base"])
-    selected_surcharge = surcharge_options[preferred_base]
-
-    if st.button(txt["submit"]):
-        tracking_id = str(uuid.uuid4())[:8]
-
-        new_row = {
-            "Tracking ID": tracking_id,
-            "Requester": name,
-            "Requester Contact": contact,
-            "Campus": campus,
-            "Item": item,
-            "Qty": qty,
-            "Max Price (SLL)": max_price,
-            "Expected Delivery Time": delivery_time.strftime("%H:%M"),
-            "Preferred Shopper Base": preferred_base,
-            "Surcharge (SLL)": selected_surcharge,
-            "Assigned Shopper": "Unassigned",
-            "Shopper Name": "",
-            "Timestamp": datetime.utcnow().isoformat(),
-            "Status": txt["pending"],
-            "Rating": ""
-        }
-
-        st.session_state.requests = pd.concat(
-            [st.session_state.requests, pd.DataFrame([new_row])],
-            ignore_index=True
-        )
-
-        save_requests_to_gsheet()
-        st.success(f"Tracking ID: {tracking_id}")
-
-# =========================
-# SHOPPER FLOW
-# =========================
-elif user_type == "Shopper":
-    st.subheader(txt["available"])
-
-    shopper_name = st.text_input("Your Name")
-
-    df = st.session_state.requests
-    available_df = df[df["Assigned Shopper"] == "Unassigned"]
-
-    if available_df.empty:
-        st.info("No requests available.")
-    else:
-        st.dataframe(available_df)
-
-        track_id_input = st.text_input("Tracking ID")
-
-        if st.button(txt["accept"]):
-            if track_id_input in available_df["Tracking ID"].values:
-                idx = df.index[df["Tracking ID"] == track_id_input][0]
-
-                st.session_state.requests.at[idx, "Assigned Shopper"] = "Accepted"
-                st.session_state.requests.at[idx, "Shopper Name"] = shopper_name
-                st.session_state.requests.at[idx, "Status"] = txt["assigned"]
-
-                save_requests_to_gsheet()
-                st.success("Assigned!")
-
-    st.subheader("📋 My Deliveries")
-
-    my_jobs = df[df["Shopper Name"] == shopper_name]
-
-    if not my_jobs.empty:
-        st.dataframe(my_jobs)
-
-        update_id = st.text_input("Tracking ID to update")
-        new_status = st.selectbox("Status", [txt["assigned"], txt["delivered"]])
-
-        if st.button("Update Status"):
-            if update_id in my_jobs["Tracking ID"].values:
-                idx = df.index[df["Tracking ID"] == update_id][0]
-                st.session_state.requests.at[idx, "Status"] = new_status
-                save_requests_to_gsheet()
-                st.success("Updated!")
-
-# =========================
-# RATING
-# =========================
-st.subheader(txt["rate"])
-
-rating_id = st.text_input("Tracking ID to rate")
-rating_value = st.slider("Rating", 1, 5)
-
-if st.button("Submit Rating"):
-    df = st.session_state.requests
-    if rating_id in df["Tracking ID"].values:
-        idx = df.index[df["Tracking ID"] == rating_id][0]
-        st.session_state.requests.at[idx, "Rating"] = rating_value
-        save_requests_to_gsheet()
-        st.success("Thanks for rating!")
