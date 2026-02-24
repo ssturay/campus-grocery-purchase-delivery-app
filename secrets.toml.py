@@ -1,16 +1,12 @@
 [credentials]
-username = "your_username"
+username = "your_username"    # for app login
 password = "your_password"
 
 [google]
 type = "service_account"
 project_id = "your_project_id"
 private_key_id = "xxxx"
-private_key = """
------BEGIN PRIVATE KEY-----
-MIIEvQIBADANBg...
------END PRIVATE KEY-----
-"""
+private_key = "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBg...\n-----END PRIVATE KEY-----\n"
 client_email = "xxxx@xxxx.iam.gserviceaccount.com"
 client_id = "xxxx"
 auth_uri = "https://accounts.google.com/o/oauth2/auth"
