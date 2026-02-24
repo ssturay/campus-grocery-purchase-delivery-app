@@ -80,7 +80,7 @@ def connect_to_gsheet():
     creds_dict = json.loads(st.secrets["GOOGLE_CREDENTIALS_JSON"])
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPE)
     client = gspread.authorize(creds)
-    sheet = client.open(GroceryApp).sheet1
+    sheet = client.open("GroceryApp").sheet1
     return sheet
 
 sheet = connect_to_gsheet()
