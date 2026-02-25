@@ -69,7 +69,10 @@ if "requests" not in st.session_state:
         "Item","Qty","Max Price (SLL)","Expected Delivery Time",
         "Preferred Shopper Base","Surcharge (SLL)",
         "Assigned Shopper","Shopper Name",
-        "Timestamp","Status","Rating"
+        "Timestamp","Status","Rating",
+        "Platform Fee (SLL)","Shopper Earning (SLL)",
+        "Accepted Time","Delivered Time","Delivery Duration (mins)",
+        "Payment Method"
     ])
     load_requests_from_gsheet()
 
@@ -129,6 +132,7 @@ def admin_login():
 
     if not st.session_state.admin_authenticated:
         st.stop()
+
 # =========================
 # APP TITLE
 # =========================
@@ -137,6 +141,7 @@ st.title(
     if language == "English"
     else "🛍️🚚 Kampus Makit Bay & Dilivri Ap (CamPDApp) 🇸🇱"
 )
+
 # =========================
 # ROLE SELECTOR
 # =========================
@@ -170,6 +175,37 @@ if user_type == "Admin":
     col2.metric(t("Pending", "Stil dae"), pending)
     col3.metric(t("Assigned", "Don tek"), assigned)
     col4.metric(t("Delivered", "Don dɔn"), delivered)
+
+    # Revenue KPIs
+    total_platform_revenue = df["Platform Fee (SLL)"].fillna(0).astype(float).sum()
+    total_shopper_earnings = df["Shopper Earning (SLL)"].fillna(0).astype(float).sum()
+
+    colA, colB = st.columns(2)
+    colA.metric(t("Total Platform Revenue (SLL)", "Total moni fo ap"), int(total_platform_revenue))
+    colB.metric(t("Total Shopper Earnings (SLL)", "Total moni fo shoppers"), int(total_shopper_earnings))
+
+    # Avg delivery time
+    avg_delivery_time = (
+        df["Delivery Duration (mins)"]
+        .replace("", pd.NA)
+        .dropna()
+        .astype(float)
+        .mean()
+    )
+
+    if not math.isnan(avg_delivery_time):
+        st.metric(t("Avg Delivery Time (mins)", "Avarej dilivri tem"), round(avg_delivery_time, 1))
+
+    # Revenue by campus
+    campus_revenue = (
+        df.groupby("Campus")["Platform Fee (SLL)"]
+        .sum()
+        .reset_index()
+        .sort_values(by="Platform Fee (SLL)", ascending=False)
+    )
+
+    st.subheader(t("Revenue by Campus", "Moni per kampus"))
+    st.dataframe(campus_revenue)
 
     status_filter = st.selectbox(
         t("Filter by Status", "Filta wit Status"),
@@ -215,6 +251,11 @@ if user_type == t("Requester", "Pesin we dae oda"):
     max_price = st.number_input(t("Max Price (SLL)", "Max moni"), min_value=0, value=20000)
     delivery_time = st.time_input(t("Expected Delivery Time", "Ten we yu wan am"))
 
+    payment_method = st.selectbox(
+        t("Payment Method", "Wetin yu go pay wit"),
+        ["Cash on delivery", "Orange Money", "Africell Money"]
+    )
+
     campus_coordinates = {
         "FBC": (8.4840, -13.2317),
         "IPAM": (8.4875, -13.2344),
@@ -230,7 +271,6 @@ if user_type == t("Requester", "Pesin we dae oda"):
         "Bluecrest": (8.4890, -13.2320),
         "UNIMAK": (8.4660, -13.2675),
         "EBKUST": (8.4700, -13.2600)
-
     }
 
     shopper_bases = {
@@ -276,6 +316,9 @@ if user_type == t("Requester", "Pesin we dae oda"):
     preferred_base = st.selectbox(t("Preferred Shopper Base", "Udat pesin fo bay"), surcharge_df["Shopper Base"])
     selected_surcharge = surcharge_options[preferred_base]
 
+    platform_fee = int(selected_surcharge * 0.2)
+    shopper_earning = selected_surcharge - platform_fee
+
     if st.button(t("Submit Request", "Send oda")):
         tracking_id = str(uuid.uuid4())[:8]
 
@@ -290,11 +333,17 @@ if user_type == t("Requester", "Pesin we dae oda"):
             "Expected Delivery Time": delivery_time.strftime("%H:%M"),
             "Preferred Shopper Base": preferred_base,
             "Surcharge (SLL)": selected_surcharge,
+            "Platform Fee (SLL)": platform_fee,
+            "Shopper Earning (SLL)": shopper_earning,
             "Assigned Shopper": "Unassigned",
             "Shopper Name": "",
             "Timestamp": datetime.utcnow().isoformat(),
             "Status": "Pending",
-            "Rating": ""
+            "Rating": "",
+            "Accepted Time": "",
+            "Delivered Time": "",
+            "Delivery Duration (mins)": "",
+            "Payment Method": payment_method
         }
 
         st.session_state.requests = pd.concat(
@@ -331,6 +380,7 @@ elif user_type == t("Shopper", "Pesin we dae bay"):
                 st.session_state.requests.at[idx, "Assigned Shopper"] = "Accepted"
                 st.session_state.requests.at[idx, "Shopper Name"] = shopper_name
                 st.session_state.requests.at[idx, "Status"] = "Assigned"
+                st.session_state.requests.at[idx, "Accepted Time"] = datetime.utcnow().isoformat()
 
                 save_requests_to_gsheet()
                 st.success(t("Assigned!", "Yu don tek am!"))
@@ -349,6 +399,20 @@ elif user_type == t("Shopper", "Pesin we dae bay"):
             if update_id in my_jobs["Tracking ID"].values:
                 idx = df.index[df["Tracking ID"] == update_id][0]
                 st.session_state.requests.at[idx, "Status"] = new_status
+
+                if new_status == "Delivered":
+                    delivered_time = datetime.utcnow().isoformat()
+                    accepted_time = st.session_state.requests.at[idx, "Accepted Time"]
+
+                    st.session_state.requests.at[idx, "Delivered Time"] = delivered_time
+
+                    if accepted_time:
+                        duration = (
+                            datetime.fromisoformat(delivered_time)
+                            - datetime.fromisoformat(accepted_time)
+                        ).total_seconds() / 60
+                        st.session_state.requests.at[idx, "Delivery Duration (mins)"] = round(duration, 1)
+
                 save_requests_to_gsheet()
                 st.success(t("Updated!", "Don change!"))
 
