@@ -208,7 +208,7 @@ if user_type == t("Requester", "Pesin we dae oda"):
 
     name = st.text_input(t("Your Name", "Yu nem"))
     contact = st.text_input(t("Contact", "Nomba"))
-    campus = st.selectbox(t("Campus", "Kampus"), ["FBC","IPAM","COMAHS","Njala FT","MMTU","Limkokwing"])
+    campus = st.selectbox(t("Campus", "Kampus"), ["FBC","IPAM","COMAHS","Njala FT","MMTU","Limkokwing","UNIMTECH","IAMTECH","FTC","LICCSAL","IMAT","Bluecrest","UNIMAK","EBKUST"])
 
     item = st.text_input(t("Item", "Wetin yu wan bay"))
     qty = st.number_input(t("Quantity", "Ow moch"), min_value=1, value=1)
@@ -221,7 +221,15 @@ if user_type == t("Requester", "Pesin we dae oda"):
         "COMAHS": (8.4655, -13.2689),
         "Njala FT": (8.3780, -13.1665),
         "MMTU": (8.4806, -13.2586),
-        "Limkokwing": (8.3942, -13.1510)
+        "Limkokwing": (8.3942, -13.1510),
+        "UNIMTECH": (8.4683, -13.2517),
+        "IAMTECH": (8.4752, -13.2498),
+        "FTC": (8.4870, -13.2350),
+        "LICCSAL": (8.4824, -13.2331),
+        "IMAT": (8.4872, -13.2340),
+        "Bluecrest": (8.4890, -13.2320),
+        "UNIMAK": (8.4660, -13.2675),
+        "EBKUST": (8.4700, -13.2600)
 
     }
 
