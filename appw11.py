@@ -208,7 +208,7 @@ if user_type == t("Requester", "Pesin we dae oda"):
 
     name = st.text_input(t("Your Name", "Yu nem"))
     contact = st.text_input(t("Contact", "Nomba"))
-    campus = st.selectbox(t("Campus", "Kampus"), ["FBC","IPAM","COMAHS","Njala FT"])
+    campus = st.selectbox(t("Campus", "Kampus"), ["FBC","IPAM","COMAHS","Njala FT","MMTU","Limkokwing"])
 
     item = st.text_input(t("Item", "Wetin yu wan bay"))
     qty = st.number_input(t("Quantity", "Ow moch"), min_value=1, value=1)
