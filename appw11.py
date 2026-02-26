@@ -35,11 +35,14 @@ def connect_to_gsheet():
 
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPE)
     client = gspread.authorize(creds)
+
     sheet_name = "CampusGroceryRequests"
+
     try:
         sheet = client.open(sheet_name).sheet1
     except gspread.SpreadsheetNotFound:
         sheet = client.create(sheet_name).sheet1
+
     return sheet
 
 def load_requests_from_gsheet():
@@ -54,32 +57,6 @@ def save_requests_to_gsheet():
     df = df.fillna("").astype(str)
     sheet.clear()
     sheet.update([df.columns.values.tolist()] + df.values.tolist())
-
-# =========================
-# DATA CLEANING (ADMIN FIX)
-# =========================
-def clean_dataframe(df):
-    df = df.copy()
-
-    df["Status"] = df["Status"].astype(str).str.strip().str.title()
-    df["Status"] = df["Status"].replace({
-        "": "Pending",
-        "Unassigned": "Pending"
-    })
-
-    numeric_cols = [
-        "Surcharge (SLL)",
-        "Platform Fee (SLL)",
-        "Delivery Duration (mins)",
-        "Max Price (SLL)",
-        "Rating"
-    ]
-
-    for col in numeric_cols:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-
-    return df
 
 # =========================
 # SESSION INIT
@@ -97,7 +74,7 @@ if "requests" not in st.session_state:
     load_requests_from_gsheet()
 
 # =========================
-# LOGIN
+# LOGIN (GENERAL)
 # =========================
 def login():
     if "authenticated" not in st.session_state:
@@ -141,7 +118,7 @@ def admin_login():
         st.stop()
 
 # =========================
-# TITLE
+# APP TITLE
 # =========================
 st.title(
     "🛍️🚚 Campus Grocery Purchase & Delivery App (CamPDApp) 🇸🇱"
@@ -162,44 +139,21 @@ user_type = st.sidebar.radio(
 # =========================
 if user_type == "Admin":
     admin_login()
+    st.title(t("Admin Dashboard", "Admin Dashbod"))
 
-    df = clean_dataframe(st.session_state.requests)
+    df = st.session_state.requests
 
     if df.empty:
         st.info(t("No requests yet.", "Natin no dae yet."))
         st.stop()
 
-    total_requests = len(df)
-    pending = len(df[df["Status"]=="Pending"])
-    assigned = len(df[df["Status"]=="Assigned"])
-    delivered = len(df[df["Status"]=="Delivered"])
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total", len(df))
+    col2.metric("Pending", len(df[df["Status"]=="Pending"]))
+    col3.metric("Assigned", len(df[df["Status"]=="Assigned"]))
+    col4.metric("Delivered", len(df[df["Status"]=="Delivered"]))
 
-    total_surcharge = df["Surcharge (SLL)"].sum()
-    total_platform_fee = df["Platform Fee (SLL)"].sum()
-
-    avg_rating = df[df["Rating"]>0]["Rating"].mean()
-    avg_delivery_time = df[df["Delivery Duration (mins)"]>0]["Delivery Duration (mins)"].mean()
-
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-    col1.metric(t("Total Requests", "Ol oda"), total_requests)
-    col2.metric(t("Pending", "Stil dae"), pending)
-    col3.metric(t("Assigned", "Don tek"), assigned)
-    col4.metric(t("Delivered", "Don dɔn"), delivered)
-    col5.metric(t("Total Surcharge", "Ol Surcharge (SLL)"), int(total_surcharge))
-    col6.metric(t("Platform Fee", "Platform Fee (SLL)"), int(total_platform_fee))
-
-    st.subheader(t("Performance Metrics", "Performans"))
-    st.write(t("Average Rating", "Average rate"), round(avg_rating,2) if not math.isnan(avg_rating) else 0)
-    st.write(t("Average Delivery Time (mins)", "Average ten fo dilivri"), int(avg_delivery_time) if not math.isnan(avg_delivery_time) else 0)
-
-    status_filter = st.selectbox(
-        t("Filter by Status", "Filta wit Status"),
-        [t("All", "Ol"), "Pending", "Assigned", "Delivered"]
-    )
-
-    filtered_df = df if status_filter==t("All","Ol") else df[df["Status"]==status_filter]
-    st.dataframe(filtered_df)
-
+    st.dataframe(df)
     st.stop()
 
 # =========================
@@ -209,34 +163,14 @@ campus_coordinates = {
     "FBC": (8.4840, -13.2317),
     "IPAM": (8.4875, -13.2344),
     "COMAHS": (8.4655, -13.2689),
-    "Njala FT": (8.3780, -13.1665),
-    "MMTU": (8.4806, -13.2586),
-    "Limkokwing": (8.3942, -13.1510),
-    "UNIMTECH": (8.4683, -13.2517),
-    "IAMTECH": (8.4752, -13.2498),
-    "FTC": (8.4870, -13.2350),
-    "LICCSAL": (8.4824, -13.2331),
-    "IMAT": (8.4872, -13.2340),
-    "Bluecrest": (8.4890, -13.2320),
-    "UNIMAK": (8.4660, -13.2675),
-    "EBKUST": (8.4700, -13.2600)
+    "Njala FT": (8.3780, -13.1665)
 }
 
 shopper_bases = {
     "Lumley": (8.4571, -13.2924),
     "Aberdeen": (8.4848, -13.2827),
     "Congo Cross": (8.4842, -13.2673),
-    "Campbell Street": (8.4865, -13.2409),
-    "Calaba Town": (8.3786, -13.1664),
-    "Jui": (8.3543, -13.1216),
-    "Siaka Stevens Street": (8.4867, -13.2349),
-    "Circular Road": (8.4830, -13.2260),
-    "Eastern Police": (8.4722, -13.2167),
-    "Rawdon Street": (8.4856, -13.2338),
-    "New England": (8.4746, -13.2500),
-    "Hill Station": (8.4698, -13.2661),
-    "Hastings": (8.3873, -13.1272),
-    "Wilberforce": (8.4678, -13.255)
+    "Campbell Street": (8.4865, -13.2409)
 }
 
 def calculate_surcharge(distance_km):
@@ -254,7 +188,6 @@ if user_type == t("Requester","Pesin we dae oda"):
     name = st.text_input(t("Your Name","Yu nem"))
     contact = st.text_input(t("Contact","Nomba"))
     campus = st.selectbox(t("Campus","Kampus"), list(campus_coordinates.keys()))
-
     item = st.text_input(t("Item","Wetin yu wan bay"))
     qty = st.number_input(t("Quantity","Ow moch"), min_value=1, value=1)
     max_price = st.number_input(t("Max Price (SLL)","Max moni"), min_value=0, value=20000)
@@ -267,37 +200,40 @@ if user_type == t("Requester","Pesin we dae oda"):
 
     lat, lon = campus_coordinates[campus]
 
+    # MAP
     m = folium.Map(location=[lat, lon], zoom_start=14)
     folium.Marker([lat, lon], tooltip=t("Campus","Kampus")).add_to(m)
-
     for base_name,(base_lat,base_lon) in shopper_bases.items():
         folium.Marker([base_lat,base_lon], tooltip=base_name, icon=folium.Icon(color='green')).add_to(m)
-
     st_folium(m,width=700,height=400)
 
+    # DISTANCE + SURCHARGE
     surcharge_options = {}
     for base_name,(base_lat,base_lon) in shopper_bases.items():
         dist = geodesic((lat,lon),(base_lat,base_lon)).km
         surcharge_options[base_name] = calculate_surcharge(dist)
 
-    sorted_bases = sorted(surcharge_options.items(), key=lambda x:x[1])
-    default_base = sorted_bases[0][0]
+    surcharge_df = pd.DataFrame(
+        [{"Shopper Base":k, "Surcharge (SLL)":v}
+         for k,v in sorted(surcharge_options.items(), key=lambda x:x[1])]
+    )
 
-    surcharge_df = pd.DataFrame([{"Shopper Base":k, t("Estimated Surcharge (SLL)","Moni fo dilivri"):v}
-                                 for k,v in sorted_bases])
     st.dataframe(surcharge_df)
+
+    # AUTO-SELECT CHEAPEST (NEAREST)
+    default_base = surcharge_df.iloc[0]["Shopper Base"]
 
     preferred_base = st.selectbox(
         t("Preferred Shopper Base","Udat pesin fo bay"),
         surcharge_df["Shopper Base"],
-        index=surcharge_df["Shopper Base"].tolist().index(default_base)
+        index=0
     )
 
     selected_surcharge = surcharge_options[preferred_base]
 
     if st.button(t("Submit Request","Send oda")):
         tracking_id = str(uuid.uuid4())[:8]
-        platform_fee = int(selected_surcharge*0.10)
+        platform_fee = int(selected_surcharge * 0.10)
 
         new_row = {
             "Tracking ID":tracking_id,
@@ -331,13 +267,15 @@ if user_type == t("Requester","Pesin we dae oda"):
         st.success(f"{t('Tracking ID','Trak ID')}: {tracking_id}")
 
 # =========================
-# SHOPPER FLOW (RESTORED)
+# SHOPPER FLOW
 # =========================
 elif user_type == t("Shopper","Pesin we dae bay"):
+
     st.subheader(t("Available Requests","Oda we dae"))
     shopper_name = st.text_input(t("Your Name","Yu nem"))
 
-    df = clean_dataframe(st.session_state.requests)
+    df = st.session_state.requests
+
     available_df = df[df["Assigned Shopper"]=="Unassigned"]
 
     if available_df.empty:
@@ -349,9 +287,7 @@ elif user_type == t("Shopper","Pesin we dae bay"):
 
         if st.button(t("Accept Request","Tek dis oda")):
             if track_id_input in available_df["Tracking ID"].values:
-                idx = st.session_state.requests.index[
-                    st.session_state.requests["Tracking ID"]==track_id_input
-                ][0]
+                idx = df.index[df["Tracking ID"]==track_id_input][0]
 
                 st.session_state.requests.at[idx,"Assigned Shopper"]="Accepted"
                 st.session_state.requests.at[idx,"Shopper Name"]=shopper_name
@@ -373,9 +309,7 @@ elif user_type == t("Shopper","Pesin we dae bay"):
 
         if st.button(t("Update Status","Update Status")):
             if update_id in my_jobs["Tracking ID"].values:
-                idx = st.session_state.requests.index[
-                    st.session_state.requests["Tracking ID"]==update_id
-                ][0]
+                idx = df.index[df["Tracking ID"]==update_id][0]
 
                 st.session_state.requests.at[idx,"Status"]=new_status
 
@@ -383,6 +317,7 @@ elif user_type == t("Shopper","Pesin we dae bay"):
                     st.session_state.requests.at[idx,"Delivered Time"]=datetime.utcnow().isoformat()
 
                     accepted_time_str = st.session_state.requests.at[idx,"Accepted Time"]
+
                     if accepted_time_str:
                         accepted_time = datetime.fromisoformat(accepted_time_str)
                         duration = (datetime.utcnow()-accepted_time).total_seconds()/60
@@ -392,14 +327,16 @@ elif user_type == t("Shopper","Pesin we dae bay"):
                 st.success(t("Updated!","Don change!"))
 
 # =========================
-# RATING (RESTORED)
+# RATING
 # =========================
 st.subheader(t("Rate Delivery","Gi rate fo dilivri"))
+
 rating_id = st.text_input(t("Tracking ID to rate","Trak ID fo rate"))
 rating_value = st.slider(t("Rating","Rate"),1,5)
 
 if st.button(t("Submit Rating","Send rate")):
     df = st.session_state.requests
+
     if rating_id in df["Tracking ID"].values:
         idx = df.index[df["Tracking ID"]==rating_id][0]
         st.session_state.requests.at[idx,"Rating"]=rating_value
